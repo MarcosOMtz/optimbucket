@@ -26,6 +26,10 @@ qcut <- function(x, g=10){
   )
 }
 
+reset.buckets <- function(x){
+  x$info$bucket <- 0:(nrow(x$info)-1)
+  x
+}
 wroc.default <- function(predictions, labels, ngroups=50, level.bad=1, col.bad=1,
                          special.values = NULL){
   if(!is.numeric(predictions)){
@@ -212,6 +216,13 @@ plot.wroc <- function(x,
  p
 }
 optimize.wroc <- function(x, trend = c('auto','upper','lower')){
+  if('optimal.wroc' %in% class(x)){
+    warning('This is an already optimal ROC curve. Returning the input ROC curve. ')
+    return(x)
+  } else if('subset.wroc' %in% class(x)){
+    warning('This ROC curve has been manually tampered with. Resetting bucket names.')
+    x <- reset.buckets(x)
+  }
   ds <- x$info
   if(trend[1] == 'auto'){
     n_below <- sum(ds$d_ac_bad < ds$d_ac_good)
@@ -241,24 +252,18 @@ optimize.wroc <- function(x, trend = c('auto','upper','lower')){
   }
 
   aux <- cumsum(ix) - 1
+  ixx <- unique(aux) + 1
+  buckets_to_remove <- which(!(1:nrow(ds) %in% ixx))
+  out <- subset(x, buckets = buckets_to_remove)
 
-  out <- wroc(predictions=aux[-1],
-              labels=cbind(ds$n_bad, ds$n_good)[-1,],
-              ngroups = length(aux)-1)
-  out$special <- x$special
-  out$nspecial <- x$nspecial
-  ixx <- unique(aux) + 1 #c(TRUE, (is.na(diff(aux)) | diff(aux) >= 1))
-  out$info$bucket <- ds$bucket[ixx]
-  out$info$upper_limit <- ds$upper_limit[ixx]
-  out$jumps <- jumps
-  out$groups <- aux
-  out$ngroups <- nrow(out$info) - 1
+  out$removed.buckets <- c(x$removed.buckets, buckets_to_remove)
   out$trend <- trend
   out$call.optimize <- match.call()
 
   class(out) <- c('optimal.wroc', 'wroc')
   out
 }
+
 performance.wroc <- function(x){
   ds <- x$info
 
@@ -326,16 +331,36 @@ subset.wroc <- function(x, buckets = NULL, ...){
   class(out) <- c('subset.wroc', class(out))
   out
 }
+
+
 analyze.wroc <- function(x,
-                         trend = c('auto','upper','lower'),
-                         min.gini.prop = 0.8){
+                         nbuckets = 5,
+                         trend = c('auto','upper','lower')){
+  #x <- wr
   ds <- x$info
+  # tr <- ds %>%
+  #   mutate(dx = (dplyr::lead(d_ac_good) - dplyr::lag(d_ac_good)),
+  #          bases_gini_up_raw = pmax(dplyr::lead(d_ac_bad - d_ac_good), 0),
+  #          bases_gini_up = bases_gini_up_raw + lag(bases_gini_up_raw),
+  #          bases_gini_down_raw = pmax(dplyr::lead(d_ac_good - d_ac_bad), 0),
+  #          bases_gini_down = bases_gini_down_raw + lag(bases_gini_down_raw),
+  #          area_gini_up = bases_gini_up*dx/2,
+  #          area_gini_down = bases_gini_down*dx/2) %>%
+  #   .[-c(1,nrow(ds)),]
 
   tr <- ds %>%
-    mutate(dx = (d_ac_good - dplyr::lag(d_ac_good)),
-           bases = (d_ac_bad + dplyr::lag(d_ac_bad)),
-           area = bases*dx/2) %>%
-    .[-1,]
+    mutate(dx = (dplyr::lead(d_ac_good) - dplyr::lag(d_ac_good)),
+           bases_gini_up_raw = pmax(dplyr::lead(d_ac_bad - d_ac_good), 0),
+           bases_gini_up = bases_gini_up_raw + lag(bases_gini_up_raw),
+           area_gini_up = bases_gini_up*dx/2) %>%
+    .[-c(1,nrow(ds)),]
+
+  buckets_to_paste <- numeric(x$ngroups - nbuckets)
+  for(k in 1:(x$ngroups-ngroups)){
+
+  }
+
+
   auc <- sum(tr$area)
 
   out <- list(
