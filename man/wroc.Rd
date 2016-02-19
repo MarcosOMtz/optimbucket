@@ -62,6 +62,11 @@ Felipe Gerard
 %% ~~objects to See Also as \code{\link{help}}, ~~~
 }
 \examples{
+
+## Load required package
+library(ggplot2)
+library(optimbucket)
+
 ## Generate data
 ng <- 10000
 nb <- 1000
