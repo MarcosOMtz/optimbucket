@@ -253,6 +253,7 @@ optimize.wroc <- function(x, trend = c('auto','upper','lower')){
   out$jumps <- jumps
   out$groups <- aux
   out$ngroups <- nrow(out$info) - 1
+  out$trend <- trend
   out$call.optimize <- match.call()
 
   class(out) <- c('optimal.wroc', 'wroc')
