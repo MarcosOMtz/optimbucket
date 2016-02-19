@@ -132,7 +132,9 @@ wroc.default <- function(predictions, labels, ngroups=50, level.bad=1, col.bad=1
   out
 }
 
-plot.wroc <- function(x, type = c('accum','roc','trend','woe')){
+plot.wroc <- function(x,
+                      type = c('accum','roc','trend','woe'),
+                      include.special = TRUE){
   require(ggplot2)
 
   if(type[1] == 'accum'){
@@ -153,42 +155,54 @@ plot.wroc <- function(x, type = c('accum','roc','trend','woe')){
       scale_color_gradientn(colors = c('blue','green','yellow','red')) +
       labs(x='fpr',y='tpr')
   } else if(type[1] == 'trend'){
-    brks <- 1:(nrow(x$info)-1)
+    ds <- x$info[-1,]
+    if(include.special) ds <- rbind(x$special, ds)
+    ds <- ds %>%
+      mutate(barcol = ifelse(bucket < 0, 'red', 'darkgrey'))
+    brks <- 1:nrow(ds)
     labls <- sprintf('B%d: (%.2f, %.2f]',
-                     x$info$bucket[-1],
-                     x$info$lower_limit[-1],
-                     x$info$upper_limit[-1])
+                     ds$bucket,
+                     ds$lower_limit,
+                     ds$upper_limit)
+    if(include.special) labls[1:nrow(x$special)] <- gsub('\\(','[',labls[1:nrow(x$special)])
     labls[length(labls)] <- gsub(']',')',labls[length(labls)])
-    p <- x$info[-1,] %>%
+    p <- ds %>%
       mutate(i = row_number(),
              norm_population = population*max(p_bad)/max(population)) %>%
       ggplot(aes(i, p_bad)) +
-      geom_bar(aes(y=norm_population), stat='identity') +
+      geom_bar(aes(y=norm_population, fill=barcol), stat='identity') +
       geom_point() +
       geom_line() +
       geom_text(aes(y = 0, label=sprintf('%.2f %%',d_population)),
                 size = 2, vjust=1)+#angle=90, hjust = -0.5) +
+      scale_fill_identity() +
       scale_x_continuous(breaks=brks,labels=labls) +
       theme(axis.text.x = element_text(angle=90)) +
       labs(x = 'Bucket',
            y = 'Default rate')
 
   } else if(type[1] == 'woe'){
-    brks <- 1:(nrow(x$info)-1)
+    ds <- x$info[-1,]
+    if(include.special) ds <- rbind(x$special, ds)
+    ds <- ds %>%
+      mutate(barcol = ifelse(bucket < 0, 'red', 'darkgrey'))
+    brks <- 1:nrow(ds)
     labls <- sprintf('B%d: (%.2f, %.2f]',
-                     x$info$bucket[-1],
-                     x$info$lower_limit[-1],
-                     x$info$upper_limit[-1])
+                     ds$bucket,
+                     ds$lower_limit,
+                     ds$upper_limit)
+    if(include.special) labls[1:nrow(x$special)] <- gsub('\\(','[',labls[1:nrow(x$special)])
     labls[length(labls)] <- gsub(']',')',labls[length(labls)])
-    p <- x$info[-1,] %>%
+    p <- ds %>%
       mutate(i = row_number(),
              norm_population = population*max(woe)/max(population)) %>%
       ggplot(aes(i, woe)) +
-      geom_bar(aes(y=norm_population), stat='identity') +
+      geom_bar(aes(y=norm_population, fill=barcol), stat='identity') +
       geom_point() +
       geom_line() +
       geom_text(aes(y = 0, label=sprintf('%.2f %%',d_population)),
                 size = 2, vjust=1)+#angle=90, hjust = -0.5) +
+      scale_fill_identity() +
       scale_x_continuous(breaks=brks,labels=labls) +
       theme(axis.text.x = element_text(angle=90)) +
       labs(x = 'Bucket',
