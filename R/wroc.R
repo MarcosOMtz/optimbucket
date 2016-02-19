@@ -1,9 +1,9 @@
 
 # PRUEBAS TRAMEADOS
 
-library(dplyr)
-library(tidyr)
-library(ggplot2)
+require(dplyr)
+require(tidyr)
+require(ggplot2)
 
 wroc <- function(x, ...) UseMethod("wroc")
 
