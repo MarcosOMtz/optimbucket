@@ -244,12 +244,14 @@ optimize.wroc <- function(x, trend = c('auto','upper','lower')){
   out <- wroc(predictions=aux[-1],
               labels=cbind(ds$n_bad, ds$n_good)[-1,],
               ngroups = length(aux)-1)
+  out$special <- x$special
+  out$nspecial <- x$nspecial
   ixx <- unique(aux) + 1 #c(TRUE, (is.na(diff(aux)) | diff(aux) >= 1))
   out$info$bucket <- ds$bucket[ixx]
   out$info$upper_limit <- ds$upper_limit[ixx]
   out$jumps <- jumps
   out$groups <- aux
-  out$ngroups <- dim(out$info) - 1
+  out$ngroups <- nrow(out$info) - 1
   out$call.optimize <- match.call()
 
   class(out) <- c('optimal.wroc', 'wroc')
