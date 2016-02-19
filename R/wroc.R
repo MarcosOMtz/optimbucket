@@ -257,7 +257,7 @@ optimize.wroc <- function(x, trend = c('auto','upper','lower')){
   class(out) <- c('optimal.wroc', 'wroc')
   out
 }
-auc.wroc <- function(x){
+performance.wroc <- function(x){
   ds <- x$info
 
   tr <- ds %>%
@@ -269,7 +269,9 @@ auc.wroc <- function(x){
            bases_gini_down = bases_gini_down_raw + lag(bases_gini_down_raw),
            area_auc = bases_auc*dx/2,
            area_gini_up = bases_gini_up*dx/2,
-           area_gini_down = bases_gini_down*dx/2) %>%
+           area_gini_down = bases_gini_down*dx/2,
+           ks_prospect = abs(d_good - d_bad),
+           iv_contribution = (d_good - d_bad)*woe) %>%
     .[-1,]
 
   out <- list()
@@ -278,8 +280,10 @@ auc.wroc <- function(x){
   out$gini_up <- 2*sum(tr$area_gini_up)
   out$gini_down <- 2*sum(tr$area_gini_down)
   out$gini <- max(out$gini_up, out$gini_down)
+  out$ks <- max(tr$ks_prospect)
+  out$iv <- sum(tr$iv_contribution)
 
-  class(out) <- c('wauc')
+  class(out) <- c('wroc.performance')
   out
 }
 
