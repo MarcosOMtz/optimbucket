@@ -25,7 +25,9 @@ qcut <- function(x, g=10){
     percentages = c(round(percentages, 3), 1)
   )
 }
-wroc.default <- function(predictions, labels, ngroups=50, level.bad=1, col.bad=1){
+
+wroc.default <- function(predictions, labels, ngroups=50, level.bad=1, col.bad=1,
+                         special.values = NULL){
   if(!is.numeric(predictions)){
     warning("Predictions should be numeric. Coercing to numeric.")
     predictions <- as.numeric(predictions)
@@ -35,11 +37,30 @@ wroc.default <- function(predictions, labels, ngroups=50, level.bad=1, col.bad=1
   out$call <- match.call()
   class(out) <- 'wroc'
 
+  if(!is.null(special.values)){
+    special.values <- unique(special.values)
+    special_ix <- sapply(predictions, function(i){
+      (i %in% special.values)
+    })
+    special_buckets <- sapply(predictions[special_ix], function(i){
+      -which(i == special.values)
+    })
+    special_predictions <- predictions[special_ix]
+    special_labels <- labels[special_ix]
+  } else {
+    special_ix <- rep(F, length(predictions))
+    special_buckets <- NULL
+  }
+
+
+  buckets <- rep(NA, length(special_ix))
+  buckets[special_ix] <- special_buckets
   if(is.na(ngroups)){
-    buckets <- 1:length(predictions)
+    warning('Using exact ROC curve. This may be very slow for continuous variables! Try using a smaller number for ngroups.')
+    buckets[!special_ix] <- 1:sum(!special_ix)
   } else{
     # buckets <- as.numeric(cut2(predictions, g = ngroups))
-    buckets <- as.numeric(qcut(predictions, g = ngroups)$x)
+    buckets[!special_ix] <- as.numeric(qcut(predictions[!special_ix], g = ngroups)$x)
   }
 
   if((is.vector(labels) && is.numeric(labels)) || is.factor(labels)){
@@ -97,15 +118,20 @@ wroc.default <- function(predictions, labels, ngroups=50, level.bad=1, col.bad=1
   }
 
 
+  ix <- (out$info$bucket %in% special_buckets)
+  out$special <- out$info[ix,]
+  out$info <- out$info[!ix,]
   out$info$upper_limit[1] <- -Inf
   out$info$upper_limit[nrow(out$info)] <- Inf
   out$info$lower_limit <- lag(out$info$upper_limit)
   out$info$lower_limit[1] <- -Inf
 
   out$ngroups <- nrow(out$info) - 1
+  out$nspecial <- nrow(out$special)
 
   out
 }
+
 plot.wroc <- function(x, type = c('accum','roc','trend','woe')){
   require(ggplot2)
 
