@@ -1,0 +1,394 @@
+
+# PRUEBAS TRAMEADOS
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+wroc <- function(x, ...) UseMethod("wroc")
+
+qcut <- function(x, g=10){
+  if(!is.numeric(g) || g <= 0) stop("g should be a positive integer.")
+  if(is.factor(x)){
+    warning("Converting factor to numeric.")
+    x <- as.numeric(x)
+  }
+  percentages <- seq(1/g, 1-(1/g), l=g-1)
+  qq <- quantile(x, percentages)
+  y <- cut(x,
+      breaks=c(-Inf,
+               unique(qq),
+               Inf),
+      right=TRUE)
+  list(
+    x = y,
+    percentages = c(round(percentages, 3), 1)
+  )
+}
+wroc.default <- function(predictions, labels, ngroups=50, level.bad=1, col.bad=1){
+  if(!is.numeric(predictions)){
+    warning("Predictions should be numeric. Coercing to numeric.")
+    predictions <- as.numeric(predictions)
+  }
+
+  out <- list()
+  out$call <- match.call()
+  class(out) <- 'wroc'
+
+  if(is.na(ngroups)){
+    buckets <- 1:length(predictions)
+  } else{
+    # buckets <- as.numeric(cut2(predictions, g = ngroups))
+    buckets <- as.numeric(qcut(predictions, g = ngroups)$x)
+  }
+
+  if((is.vector(labels) && is.numeric(labels)) || is.factor(labels)){
+    out$info <- data.frame(bucket = buckets,
+                           x = predictions,
+                           y = labels) %>%
+      group_by(bucket) %>%
+      summarise(population = n(),
+                lower_limit = max(x),
+                upper_limit = max(x),
+                n_bad = sum(y == level.bad))
+  } else if((is.matrix(labels) | is.data.frame(labels)) && ncol(labels) == 2){
+    ix <- (apply(labels, 1, sum) != 0)
+    out$info <- data.frame(bucket = buckets,
+                           x = predictions,
+                           n_bad = labels[,col.bad],
+                           n_good = labels[,which(1:2 != col.bad)]) %>%
+      filter(ix) %>%
+      group_by(bucket) %>%
+      summarise(population = sum(n_bad) + sum(n_good),
+                lower_limit = max(x),
+                upper_limit = max(x),
+                n_bad = sum(n_bad))
+  } else{
+    stop("The labels must be either a vector of classes (numeric or factor) or a two-column matrix with the counts for each class.")
+  }
+
+  out$info <- out$info %>%
+    mutate(n_good = population - n_bad,
+           p_bad = n_bad / population,
+           p_good = 1 - p_bad,
+           ac_population = cumsum(population),
+           ac_bad = cumsum(n_bad),
+           ac_good = cumsum(n_good),
+           tot_population = sum(population),
+           tot_bad = sum(n_bad),
+           tot_good = sum(n_good),
+           d_population = population/tot_population,
+           d_bad = n_bad/tot_bad,
+           d_good = n_good/tot_good,
+           d_ac_population = ac_population/tot_population,
+           d_ac_bad = ac_bad/tot_bad,
+           d_ac_good = ac_good/tot_good,
+           woe = ifelse(p_bad == 0 | p_good == 0, NA, log(p_good/p_bad))) %>%
+    rbind(0, .)
+
+  if(any(is.na(out$info$woe))){
+    warning('Some buckets have observations of a single class. Replacing WoE with twice the maximum / minimum WoE among other buckets.')
+    out$info <- out$info %>%
+      mutate(woe = ifelse(is.na(woe),
+                          ifelse(p_bad == 0,
+                                 2*max(woe, na.rm = T),
+                                 2*min(woe, na.rm = T)),
+                          woe))
+  }
+
+
+  out$info$upper_limit[1] <- -Inf
+  out$info$upper_limit[nrow(out$info)] <- Inf
+  out$info$lower_limit <- lag(out$info$upper_limit)
+  out$info$lower_limit[1] <- -Inf
+
+  out$ngroups <- nrow(out$info) - 1
+
+  out
+}
+plot.wroc <- function(x, type = c('accum','roc','trend','woe')){
+  require(ggplot2)
+
+  if(type[1] == 'accum'){
+    p <- x$info %>%
+      ggplot(aes(d_ac_good, d_ac_bad, color=bucket)) +
+      geom_rect(xmin=0,xmax=1,ymin=0,ymax=1,fill=NA, color='black') +
+      geom_segment(aes(x=0,xend=1,y=0,yend=1), color='black', linetype='dashed') +
+      geom_line(size=1) +
+      geom_point() +
+      scale_color_gradientn(colors = c('blue','green','yellow','red'))
+  } else if(type[1] == 'roc'){
+    p <- x$info %>%
+      ggplot(aes(1-d_ac_good, 1-d_ac_bad, color=bucket)) +
+      geom_rect(xmin=0,xmax=1,ymin=0,ymax=1,fill=NA, color='black') +
+      geom_segment(aes(x=0,xend=1,y=0,yend=1), color='black', linetype='dashed') +
+      geom_line(size=1) +
+      geom_point() +
+      scale_color_gradientn(colors = c('blue','green','yellow','red')) +
+      labs(x='fpr',y='tpr')
+  } else if(type[1] == 'trend'){
+    brks <- 1:(nrow(x$info)-1)
+    labls <- sprintf('B%d: (%.2f, %.2f]',
+                     x$info$bucket[-1],
+                     x$info$lower_limit[-1],
+                     x$info$upper_limit[-1])
+    labls[length(labls)] <- gsub(']',')',labls[length(labls)])
+    p <- x$info[-1,] %>%
+      mutate(i = row_number(),
+             norm_population = population*max(p_bad)/max(population)) %>%
+      ggplot(aes(i, p_bad)) +
+      geom_bar(aes(y=norm_population), stat='identity') +
+      geom_point() +
+      geom_line() +
+      geom_text(aes(y = 0, label=sprintf('%.2f %%',d_population)),
+                size = 2, vjust=1)+#angle=90, hjust = -0.5) +
+      scale_x_continuous(breaks=brks,labels=labls) +
+      theme(axis.text.x = element_text(angle=90)) +
+      labs(x = 'Bucket',
+           y = 'Default rate')
+
+  } else if(type[1] == 'woe'){
+    brks <- 1:(nrow(x$info)-1)
+    labls <- sprintf('B%d: (%.2f, %.2f]',
+                     x$info$bucket[-1],
+                     x$info$lower_limit[-1],
+                     x$info$upper_limit[-1])
+    labls[length(labls)] <- gsub(']',')',labls[length(labls)])
+    p <- x$info[-1,] %>%
+      mutate(i = row_number(),
+             norm_population = population*max(woe)/max(population)) %>%
+      ggplot(aes(i, woe)) +
+      geom_bar(aes(y=norm_population), stat='identity') +
+      geom_point() +
+      geom_line() +
+      geom_text(aes(y = 0, label=sprintf('%.2f %%',d_population)),
+                size = 2, vjust=1)+#angle=90, hjust = -0.5) +
+      scale_x_continuous(breaks=brks,labels=labls) +
+      theme(axis.text.x = element_text(angle=90)) +
+      labs(x = 'Bucket',
+           y = 'Weight of Evidence')
+  }
+ p
+}
+optimize.wroc <- function(x, trend = c('auto','upper','lower')){
+  ds <- x$info
+  if(trend[1] == 'auto'){
+    n_below <- sum(ds$d_ac_bad < ds$d_ac_good)
+    trend <- ifelse(n_below >= nrow(ds)/2, 'lower', 'upper')
+  }
+  which.fun <- ifelse(trend[1] == 'upper', which.max, which.min)
+
+  jumps <- sapply(1:(nrow(ds)-1), function(i){
+    len <- nrow(ds)
+    dx <- ds$d_ac_good[(i+1):len] - ds$d_ac_good[i]
+    dy <- ds$d_ac_bad[(i+1):len] - ds$d_ac_bad[i]
+    j <- ifelse(all(dy == 0) || all(dx == 0), length(dy),
+                which.fun(ifelse(dx == 0, Inf, dy/dx)))
+    j
+  })
+
+  ix <- rep(1, length(jumps)+1)
+  i <- 1
+  while(i <= length(jumps)){
+    if(jumps[i] > 1){
+      ix[i+1] <- jumps[i]
+      ix[(i+2):(i+jumps[i])] <- 0
+      i <- i + jumps[i]
+    } else{
+      i <- i + 1
+    }
+  }
+
+  aux <- cumsum(ix) - 1
+
+  out <- wroc(predictions=aux[-1],
+              labels=cbind(ds$n_bad, ds$n_good)[-1,],
+              ngroups = length(aux)-1)
+  ixx <- unique(aux) + 1 #c(TRUE, (is.na(diff(aux)) | diff(aux) >= 1))
+  out$info$bucket <- ds$bucket[ixx]
+  out$info$upper_limit <- ds$upper_limit[ixx]
+  out$jumps <- jumps
+  out$groups <- aux
+  out$ngroups <- dim(out$info) - 1
+  out$call.optimize <- match.call()
+
+  class(out) <- c('optimal.wroc', 'wroc')
+  out
+}
+auc.wroc <- function(x){
+  ds <- x$info
+
+  tr <- ds %>%
+    mutate(dx = (d_ac_good - dplyr::lag(d_ac_good)),
+           bases_auc = (d_ac_bad + dplyr::lag(d_ac_bad)),
+           bases_gini_up_raw = pmax(d_ac_bad - d_ac_good, 0),
+           bases_gini_up = bases_gini_up_raw + lag(bases_gini_up_raw),
+           bases_gini_down_raw = pmax(d_ac_good - d_ac_bad, 0),
+           bases_gini_down = bases_gini_down_raw + lag(bases_gini_down_raw),
+           area_auc = bases_auc*dx/2,
+           area_gini_up = bases_gini_up*dx/2,
+           area_gini_down = bases_gini_down*dx/2) %>%
+    .[-1,]
+
+  out <- list()
+  out$auc <- sum(tr$area_auc)
+  out$gini_two_way <- abs(2*out$auc - 1)
+  out$gini_up <- 2*sum(tr$area_gini_up)
+  out$gini_down <- 2*sum(tr$area_gini_down)
+  out$gini <- max(out$gini_up, out$gini_down)
+
+  class(out) <- c('wauc')
+  out
+}
+
+subset.wroc <- function(x, buckets = NULL, ...){
+  if(is.null(buckets)) return(x)
+  ds <- x$info[-1,]
+  if(0 %in% buckets){
+    buckets <- buckets[buckets > 0]
+    warning('Buckets must be strictly positive integers.')
+  }
+  if(max(ds$bucket) %in% buckets){
+    stop("Cannot remove the last bucket.")
+  }
+
+  buckets <- unique(buckets)
+  ix <- sapply(buckets, function(y) which(y == ds$bucket))
+  # This must NOT be vectorized or else it doesn't work
+  for(ii in rev(ix)){
+    ds$bucket[ii] <- ds$bucket[ii+1]
+  }
+
+  out <- wroc(predictions=ds$bucket,
+              labels=cbind(ds$n_bad, ds$n_good),
+              ngroups = nrow(ds))
+
+  out$info$bucket <- c(0, ds$bucket[-ix])
+  out$info$lower_limit <- c(-Inf, ds$lower_limit[-(ix+1)])
+  out$info$upper_limit <- c(-Inf, ds$upper_limit[-(ix)])
+  out$ngroups <- nrow(out$info) - 1
+  out$call.subset <- match.call()
+  class(out) <- c('subset.wroc', class(out))
+  out
+}
+analyze.wroc <- function(x,
+                         trend = c('auto','upper','lower'),
+                         min.gini.prop = 0.8){
+  ds <- x$info
+
+  tr <- ds %>%
+    mutate(dx = (d_ac_good - dplyr::lag(d_ac_good)),
+           bases = (d_ac_bad + dplyr::lag(d_ac_bad)),
+           area = bases*dx/2) %>%
+    .[-1,]
+  auc <- sum(tr$area)
+
+  out <- list(
+    auc=auc,
+    gini=abs(2*auc - 1)
+  )
+  class(out) <- c('wauc')
+  out
+}
+
+
+plot(subset.wroc(ww,1:2), type='woe')
+
+a <- data.frame(
+  matrix(
+    c(
+      10,25,50,
+      20,35,25,
+      30,30,20,
+      40,10,5
+    ),
+    byrow=T, ncol=3
+  )
+)
+names(a) <- c('var','bad','good')
+
+ww <- wroc(a$var, a[c('bad','good')], ngroups=4, col.bad = 1)
+x <- ww
+plot(ww)
+
+#compactify.wroc
+
+#### Datos 1
+ng <- 10000
+nb <- 1000
+
+goods <- data.frame(
+  x = rnorm(ng, mean = -2),
+  y = 0
+)
+bads <- data.frame(
+  x = rnorm(nb),
+  y = 1
+)
+
+d <- rbind(goods, bads) %>%
+  mutate(y = factor(y))
+
+ggplot(d, aes(x, fill=y)) +
+  geom_density(alpha=0.5)
+
+#### Datos 2
+ng <- 1000
+nb <- 100
+
+goods <- data.frame(
+  x = rnorm(ng, mean = ifelse(runif(ng) > 0.8, 4, -2)),
+  y = 0
+)
+bads <- data.frame(
+  x = rnorm(nb),
+  y = 1
+)
+
+d <- rbind(goods, bads) %>%
+  mutate(y = factor(y))
+
+ggplot(d, aes(x, fill=y)) +
+  geom_density(alpha=0.5)
+
+#### Datos 3
+ng <- 10000
+nb <- 1000
+
+goods <- data.frame(
+  x = rnorm(ng, mean = ifelse(runif(ng) > 0.2, 10, -10)),
+  y = 0
+)
+bads <- data.frame(
+  x = rnorm(nb),
+  y = 1
+)
+
+d <- rbind(goods, bads) %>%
+  mutate(y = factor(y))
+
+ggplot(d, aes(x, fill=y)) +
+  geom_density(alpha=0.5)
+
+#### Ejemplo
+
+wr <- wroc(d$x, d$y, ngroups=50)
+auc.wroc(wr)
+plot(wr)
+plot(wr, type='trend')
+plot(wr, type='woe')
+
+wr2 <- optimize.wroc(wr, 'auto')
+auc.wroc(wr2)
+plot(wr2)
+plot(wr2, type='trend')
+plot(wr2, type='woe')
+
+# Trameado manual usando subset
+wr3 <- subset(wr, c(1:5,7:17,19:26,28:33,35:36,38:39,43))
+plot(wr3, type='woe')
+
+
+
+
+
