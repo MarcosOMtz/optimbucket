@@ -126,6 +126,7 @@ wroc.default <- function(predictions, labels, ngroups=50, level.bad=1, col.bad=1
   out$info$lower_limit <- lag(out$info$upper_limit)
   out$info$lower_limit[1] <- -Inf
 
+
   out$ngroups <- nrow(out$info) - 1
   out$nspecial <- nrow(out$special)
 
@@ -289,7 +290,12 @@ performance.wroc <- function(x){
 
 subset.wroc <- function(x, buckets = NULL, ...){
   if(is.null(buckets)) return(x)
-  ds <- x$info[-1,]
+  if(any(buckets < 0)){
+    stop('Cannot paste special valued buckets. Join the levels by hand before calling wroc.')
+  } else {
+    ds <- x$info[-1,]
+  }
+
   if(0 %in% buckets){
     buckets <- buckets[buckets > 0]
     warning('Buckets must be strictly positive integers.')
@@ -309,6 +315,8 @@ subset.wroc <- function(x, buckets = NULL, ...){
               labels=cbind(ds$n_bad, ds$n_good),
               ngroups = nrow(ds))
 
+  out$special <- x$special
+  out$nspecial <- x$nspecial
   out$info$bucket <- c(0, ds$bucket[-ix])
   out$info$lower_limit <- c(-Inf, ds$lower_limit[-(ix+1)])
   out$info$upper_limit <- c(-Inf, ds$upper_limit[-(ix)])
