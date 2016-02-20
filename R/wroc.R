@@ -30,6 +30,27 @@ reset.buckets <- function(x){
   x$info$bucket <- 0:(nrow(x$info)-1)
   x
 }
+
+performance.wroc.info_ <- function(ds, trend = c('upper','lower')){
+  if(trend[1] == 'upper'){
+    tr <- ds %>%
+      mutate(dx = (dplyr::lead(d_ac_good) - dplyr::lag(d_ac_good)),
+             bases_gini_up_raw = pmax(dplyr::lead(d_ac_bad - d_ac_good), 0),
+             bases_gini_up = bases_gini_up_raw + lag(bases_gini_up_raw),
+             area_gini_up = bases_gini_up*dx/2)
+  } else if(trend[1] == 'lower'){
+    tr <- ds %>%
+      mutate(dx = (dplyr::lead(d_ac_good) - dplyr::lag(d_ac_good)),
+             bases_gini_down_raw = pmax(dplyr::lead(d_ac_good - d_ac_bad), 0),
+             bases_gini_down = bases_gini_down_raw + lag(bases_gini_down_raw),
+             area_gini_down = bases_gini_down*dx/2)
+  } else {
+    stop('Not a valid trend. Please choose one of "upper" and "lower".')
+  }
+  tr
+}
+
+
 wroc.default <- function(predictions, labels, ngroups=50, level.bad=1, col.bad=1,
                          special.values = NULL){
   if(!is.numeric(predictions)){
@@ -253,7 +274,7 @@ optimize.wroc <- function(x, trend = c('auto','upper','lower')){
 
   aux <- cumsum(ix) - 1
   ixx <- unique(aux) + 1
-  buckets_to_remove <- which(!(1:nrow(ds) %in% ixx))
+  buckets_to_remove <- which(!(1:row(ds) %in% ixx))
   out <- subset(x, buckets = buckets_to_remove)
 
   out$removed.buckets <- c(x$removed.buckets, buckets_to_remove)
@@ -310,8 +331,8 @@ subset.wroc <- function(x, buckets = NULL, ...){
     stop("Cannot remove the last bucket.")
   }
 
-  buckets <- unique(buckets)
-  ix <- sapply(buckets, function(y) which(y == ds$bucket))
+  buckets <- sort(unique(buckets))
+  ix <- sort(sapply(buckets, function(y) which(y == ds$bucket)))
   # This must NOT be vectorized or else it doesn't work
   for(ii in rev(ix)){
     ds$bucket[ii] <- ds$bucket[ii+1]
@@ -336,38 +357,28 @@ subset.wroc <- function(x, buckets = NULL, ...){
 analyze.wroc <- function(x,
                          nbuckets = 5,
                          trend = c('auto','upper','lower')){
-  #x <- wr
+  #x <- wr; trend <- 'upper'; nbuckets <- 5
   ds <- x$info
-  # tr <- ds %>%
-  #   mutate(dx = (dplyr::lead(d_ac_good) - dplyr::lag(d_ac_good)),
-  #          bases_gini_up_raw = pmax(dplyr::lead(d_ac_bad - d_ac_good), 0),
-  #          bases_gini_up = bases_gini_up_raw + lag(bases_gini_up_raw),
-  #          bases_gini_down_raw = pmax(dplyr::lead(d_ac_good - d_ac_bad), 0),
-  #          bases_gini_down = bases_gini_down_raw + lag(bases_gini_down_raw),
-  #          area_gini_up = bases_gini_up*dx/2,
-  #          area_gini_down = bases_gini_down*dx/2) %>%
-  #   .[-c(1,nrow(ds)),]
 
-  tr <- ds %>%
-    mutate(dx = (dplyr::lead(d_ac_good) - dplyr::lag(d_ac_good)),
-           bases_gini_up_raw = pmax(dplyr::lead(d_ac_bad - d_ac_good), 0),
-           bases_gini_up = bases_gini_up_raw + lag(bases_gini_up_raw),
-           area_gini_up = bases_gini_up*dx/2) %>%
-    .[-c(1,nrow(ds)),]
+  tr <- performance.wroc.info_(x$info)
+
 
   buckets_to_paste <- numeric(x$ngroups - nbuckets)
-  for(k in 1:(x$ngroups-ngroups)){
-
+  for(k in 1:(x$ngroups-nbuckets)){
+    j <- which.min(tr$area_gini_up)
+    buckets_to_paste[k] <- tr$bucket[j]
+    tr <- tr[-j,]
+    if(j == 2){
+      aux <- tr[1:3,]
+      tr[2,] <- performance.wroc.info_(aux)[2,]
+    } else if(j > 2 && j < nrow(ds)){
+      aux <- tr[(j-2):(j+1),]
+      tr[(j-1):j,] <- performance.wroc.info_(aux)[2:3,]
+    }
+    # print(k <- k + 1)
   }
 
-
-  auc <- sum(tr$area)
-
-  out <- list(
-    auc=auc,
-    gini=abs(2*auc - 1)
-  )
-  class(out) <- c('wauc')
+  out <- subset(x, buckets = buckets_to_paste)
   out
 }
 
