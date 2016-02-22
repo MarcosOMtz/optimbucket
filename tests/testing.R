@@ -1,81 +1,74 @@
-wroc.default <- function(predictions, labels, ngroups=50, level.bad=1, col.bad=1){
-  if(!is.numeric(predictions)){
-    warning("Predictions should be numeric. Coercing to numeric.")
-    predictions <- as.numeric(predictions)
-  }
+#### Datos 1
+ng <- 10000
+nb <- 1000
 
-  out <- list()
-  out$call <- match.call()
-  class(out) <- 'wroc'
+goods <- data.frame(
+  x = round(rnorm(ng, mean = -2),2),
+  y = 0
+)
+bads <- data.frame(
+  x = rnorm(nb),
+  y = 1
+)
 
-  if(is.na(ngroups)){
-    buckets <- 1:length(predictions)
-  } else{
-    # buckets <- as.numeric(cut2(predictions, g = ngroups))
-    buckets <- as.numeric(qcut(predictions, g = ngroups)$x)
-  }
+d <- rbind(goods, bads) %>%
+  mutate(y = factor(y))
 
-  if((is.vector(labels) && is.numeric(labels)) || is.factor(labels)){
-    out$info <- data.frame(bucket = buckets,
-                           x = predictions,
-                           y = labels) %>%
-      group_by(bucket) %>%
-      summarise(population = n(),
-                lower_limit = max(x),
-                upper_limit = max(x),
-                n_bad = sum(y == level.bad))
-  } else if((is.matrix(labels) | is.data.frame(labels)) && ncol(labels) == 2){
-    ix <- (apply(labels, 1, sum) != 0)
-    out$info <- data.frame(bucket = buckets,
-                           x = predictions,
-                           n_bad = labels[,col.bad],
-                           n_good = labels[,which(1:2 != col.bad)]) %>%
-      filter(ix) %>%
-      group_by(bucket) %>%
-      summarise(population = sum(n_bad) + sum(n_good),
-                lower_limit = max(x),
-                upper_limit = max(x),
-                n_bad = sum(n_bad))
-  } else{
-    stop("The labels must be either a vector of classes (numeric or factor) or a two-column matrix with the counts for each class.")
-  }
+ggplot(d, aes(x, fill=y)) +
+  geom_density(alpha=0.5)
 
-  out$info <- out$info %>%
-    mutate(n_good = population - n_bad,
-           p_bad = n_bad / population,
-           p_good = 1 - p_bad,
-           ac_population = cumsum(population),
-           ac_bad = cumsum(n_bad),
-           ac_good = cumsum(n_good),
-           tot_population = sum(population),
-           tot_bad = sum(n_bad),
-           tot_good = sum(n_good),
-           d_population = population/tot_population,
-           d_bad = n_bad/tot_bad,
-           d_good = n_good/tot_good,
-           d_ac_population = ac_population/tot_population,
-           d_ac_bad = ac_bad/tot_bad,
-           d_ac_good = ac_good/tot_good,
-           woe = ifelse(p_bad == 0 | p_good == 0, NA, log(p_good/p_bad))) %>%
-    rbind(0, .)
+#### Datos 2
+ng <- 1000
+nb <- 100
 
-  if(any(is.na(out$info$woe))){
-    warning('Some buckets have observations of a single class. Replacing WoE with twice the maximum / minimum WoE among other buckets.')
-    out$info <- out$info %>%
-      mutate(woe = ifelse(is.na(woe),
-                          ifelse(p_bad == 0,
-                                 2*max(woe, na.rm = T),
-                                 2*min(woe, na.rm = T)),
-                          woe))
-  }
+goods <- data.frame(
+  x = rnorm(ng, mean = ifelse(runif(ng) > 0.8, 4, -2)),
+  y = 0
+)
+bads <- data.frame(
+  x = rnorm(nb),
+  y = 1
+)
 
+d <- rbind(goods, bads) %>%
+  mutate(y = factor(y))
 
-  out$info$upper_limit[1] <- -Inf
-  out$info$upper_limit[nrow(out$info)] <- Inf
-  out$info$lower_limit <- lag(out$info$upper_limit)
-  out$info$lower_limit[1] <- -Inf
+ggplot(d, aes(x, fill=y)) +
+  geom_density(alpha=0.5)
 
-  out$ngroups <- nrow(out$info) - 1
+#### Datos 3
+ng <- 10000
+nb <- 1000
 
-  out
-}
+goods <- data.frame(
+  x = rnorm(ng, mean = ifelse(runif(ng) > 0.2, 10, -10)),
+  y = 0
+)
+bads <- data.frame(
+  x = rnorm(nb),
+  y = 1
+)
+
+d <- rbind(goods, bads) %>%
+  mutate(y = factor(y))
+
+ggplot(d, aes(x, fill=y)) +
+  geom_density(alpha=0.5)
+
+#### Ejemplo
+
+wr <- wroc(d$x, d$y, ngroups=20)
+auc.wroc(wr)
+plot(wr)
+plot(wr, type='trend')
+plot(wr, type='woe')
+
+wr2 <- optimize.wroc(wr, 'auto')
+auc.wroc(wr2)
+plot(wr2)
+plot(wr2, type='trend')
+plot(wr2, type='woe')
+
+# Trameado manual usando subset
+wr3 <- subset(wr, c(1:5,7:17,19:26,28:33,35:36,38:39,43))
+plot(wr3, type='woe')

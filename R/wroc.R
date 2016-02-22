@@ -273,8 +273,8 @@ optimize.wroc <- function(x, trend = c('auto','upper','lower')){
   }
 
   aux <- cumsum(ix) - 1
-  ixx <- unique(aux) + 1
-  buckets_to_remove <- which(!(1:row(ds) %in% ixx))
+  ixx <- unique(aux)
+  buckets_to_remove <- which(!(1:x$ngroups %in% ixx))
   out <- subset(x, buckets = buckets_to_remove)
 
   out$removed.buckets <- c(x$removed.buckets, buckets_to_remove)
