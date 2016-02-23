@@ -32,24 +32,31 @@ reset.buckets <- function(x){
 }
 
 performance.wroc.info_ <- function(ds, trend = c('upper','lower')){
-  if(trend[1] == 'upper'){
-    tr <- ds %>%
-      mutate(dx = (dplyr::lead(d_ac_good) - dplyr::lag(d_ac_good)),
-             bases_gini_up_raw = pmax(dplyr::lead(d_ac_bad - d_ac_good), 0),
-             bases_gini_up = bases_gini_up_raw + lag(bases_gini_up_raw),
-             area_gini_up = bases_gini_up*dx/2)
-  } else if(trend[1] == 'lower'){
-    tr <- ds %>%
-      mutate(dx = (dplyr::lead(d_ac_good) - dplyr::lag(d_ac_good)),
-             bases_gini_down_raw = pmax(dplyr::lead(d_ac_good - d_ac_bad), 0),
-             bases_gini_down = bases_gini_down_raw + lag(bases_gini_down_raw),
-             area_gini_down = bases_gini_down*dx/2)
-  } else {
-    stop('Not a valid trend. Please choose one of "upper" and "lower".')
+
+  if(!(trend[1] %in% c('upper','lower'))){
+    warning('Not a valid trend. Only "upper" and "lower" are allowed. Defaulting to "upper".')
+    trend <- 'upper'
   }
+  sign_trend <- ifelse(trend[1]=='upper', 1, -1)
+
+  tr <- ds %>%
+    mutate(dx = d_ac_good - dplyr::lag(d_ac_good),
+           dx_skip = dplyr::lead(d_ac_good) - dplyr::lag(d_ac_good),
+           bases_gini_raw = pmax(sign_trend*(d_ac_bad - d_ac_good), 0),
+           bases_gini = bases_gini_raw + lag(bases_gini_raw),
+           bases_gini_skip = lead(bases_gini_raw) + lag(bases_gini_raw),
+           area_gini = bases_gini*dx/2,
+           area_gini_skip = bases_gini_skip*dx_skip/2,
+           delta_area = area_gini + lead(area_gini)- area_gini_skip)
+
   tr
 }
 
+choose.trend_ <- function(x){
+  n_below <- sum(x$info$d_ac_bad < x$info$d_ac_good)
+  trend <- ifelse(n_below >= nrow(x$info)/2, 'lower', 'upper')
+  trend
+}
 
 wroc.default <- function(predictions, labels, ngroups=50, level.bad=1, col.bad=1,
                          special.values = NULL){
@@ -170,6 +177,7 @@ plot.wroc <- function(x,
       geom_segment(aes(x=0,xend=1,y=0,yend=1), color='black', linetype='dashed') +
       geom_line(size=1) +
       geom_point() +
+      geom_point(size=1.5, shape=1, color='black') +
       scale_color_gradientn(colors = c('blue','green','yellow','red'))
   } else if(type[1] == 'roc'){
     p <- x$info %>%
@@ -178,6 +186,7 @@ plot.wroc <- function(x,
       geom_segment(aes(x=0,xend=1,y=0,yend=1), color='black', linetype='dashed') +
       geom_line(size=1) +
       geom_point() +
+      geom_point(size=1.5, shape=1, color='black') +
       scale_color_gradientn(colors = c('blue','green','yellow','red')) +
       labs(x='fpr',y='tpr')
   } else if(type[1] == 'trend'){
@@ -245,10 +254,14 @@ optimize.wroc <- function(x, trend = c('auto','upper','lower')){
     x <- reset.buckets(x)
   }
   ds <- x$info
-  if(trend[1] == 'auto'){
-    n_below <- sum(ds$d_ac_bad < ds$d_ac_good)
-    trend <- ifelse(n_below >= nrow(ds)/2, 'lower', 'upper')
+  if(!(trend[1] %in% c('auto','upper','lower'))){
+    warning('Invalid trend. Only "upper", "lower" or "auto" are valid. Defaulting to "auto".')
+    trend <- 'auto'
   }
+  if(trend[1] == 'auto'){
+    trend <- choose.trend_(x)
+  }
+
   which.fun <- ifelse(trend[1] == 'upper', which.max, which.min)
 
   jumps <- sapply(1:(nrow(ds)-1), function(i){
@@ -349,6 +362,7 @@ subset.wroc <- function(x, buckets = NULL, ...){
   out$info$upper_limit <- c(-Inf, ds$upper_limit[-(ix)])
   out$ngroups <- nrow(out$info) - 1
   out$call.subset <- match.call()
+  out$pasted_buckets <- buckets
   class(out) <- c('subset.wroc', class(out))
   out
 }
@@ -358,14 +372,22 @@ analyze.wroc <- function(x,
                          nbuckets = 5,
                          trend = c('auto','upper','lower')){
   #x <- wr; trend <- 'upper'; nbuckets <- 5
+  if(!(trend[1] %in% c('auto','upper','lower'))){
+    warning('Invalid trend. Only "upper", "lower" or "auto" are valid. Defaulting to "auto".')
+    trend <- 'auto'
+  }
+  if(trend[1] == 'auto'){
+    trend <- choose.trend_(x)
+  }
+
   ds <- x$info
 
-  tr <- performance.wroc.info_(x$info)
+  tr <- performance.wroc.info_(x$info, trend = trend)
 
 
   buckets_to_paste <- numeric(x$ngroups - nbuckets)
   for(k in 1:(x$ngroups-nbuckets)){
-    j <- which.min(tr$area_gini_up)
+    j <- which.min(tr$delta_area)
     buckets_to_paste[k] <- tr$bucket[j]
     tr <- tr[-j,]
     if(j == 2){
