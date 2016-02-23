@@ -55,6 +55,25 @@ d <- rbind(goods, bads) %>%
 ggplot(d, aes(x, fill=y)) +
   geom_density(alpha=0.5)
 
+#### Datos 4
+ng <- 10000
+nb <- 1000
+
+goods <- data.frame(
+  x = rnorm(ng, mean = ifelse(runif(ng) > 0.2, -10, 10)),
+  y = 0
+)
+bads <- data.frame(
+  x = rnorm(nb),
+  y = 1
+)
+
+d <- rbind(goods, bads) %>%
+  mutate(y = factor(y))
+
+ggplot(d, aes(x, fill=y)) +
+  geom_density(alpha=0.5)
+
 #### Ejemplo
 
 wr <- wroc(d$x, d$y, ngroups=20)
@@ -72,3 +91,10 @@ plot(wr2, type='woe')
 # Trameado manual usando subset
 wr3 <- subset(wr, c(1:5,7:17,19:26,28:33,35:36,38:39,43))
 plot(wr3, type='woe')
+
+# Análisis
+plot(wr4 <- analyze.wroc(wr, 2))
+
+
+
+

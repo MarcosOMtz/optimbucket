@@ -371,7 +371,12 @@ subset.wroc <- function(x, buckets = NULL, ...){
 analyze.wroc <- function(x,
                          nbuckets = 5,
                          trend = c('auto','upper','lower')){
-  #x <- wr; trend <- 'upper'; nbuckets <- 5
+
+  if(is.null(nbuckets) || nbuckets < 0 || !is.numeric(nbuckets)){
+    message('analyze.wroc: Invalid number of buckets. Optimizing instead.')
+    return(optimize.wroc(x, trend))
+  }
+
   if(!(trend[1] %in% c('auto','upper','lower'))){
     warning('Invalid trend. Only "upper", "lower" or "auto" are valid. Defaulting to "auto".')
     trend <- 'auto'
@@ -380,27 +385,49 @@ analyze.wroc <- function(x,
     trend <- choose.trend_(x)
   }
 
+  if(x$ngroups < nbuckets){
+    stop("Cannot remove more buckets than there are!")
+  }
+
   ds <- x$info
 
   tr <- performance.wroc.info_(x$info, trend = trend)
 
 
   buckets_to_paste <- numeric(x$ngroups - nbuckets)
+  gini_loss <- numeric(x$ngroups - nbuckets)
+  gini <- numeric(x$ngroups - nbuckets)
   for(k in 1:(x$ngroups-nbuckets)){
     j <- which.min(tr$delta_area)
     buckets_to_paste[k] <- tr$bucket[j]
     tr <- tr[-j,]
     if(j == 2){
       aux <- tr[1:3,]
-      tr[2,] <- performance.wroc.info_(aux)[2,]
+      tr[2,] <- performance.wroc.info_(aux, trend = trend)[2,]
     } else if(j > 2 && j < nrow(ds)){
       aux <- tr[(j-2):(j+1),]
-      tr[(j-1):j,] <- performance.wroc.info_(aux)[2:3,]
+      tr[(j-1):j,] <- performance.wroc.info_(aux, trend = trend)[2:3,]
     }
-    # print(k <- k + 1)
+    gini[k] <- 2*sum(tr$area_gini, na.rm = T)
+    if(k == 1){
+      if(trend[1] == 'upper'){
+        gini_at_start <- performance.wroc(x)$gini_up
+      } else {
+        gini_at_start <- performance.wroc(x)$gini_down
+      }
+      gini_loss[k] <- gini_at_start - gini[k]
+    } else {
+      gini_loss[k] <- gini[k-1] - gini[k]
+    }
   }
 
   out <- subset(x, buckets = buckets_to_paste)
+  out$trend <- trend
+  out$pasted_buckets <- buckets_to_paste
+  out$gini_at_start <- gini_at_start
+  out$gini <- gini
+  out$gini_loss <- gini_loss
+  out$class <- c('analyze.wroc', class(out))
   out
 }
 
