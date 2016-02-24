@@ -1,30 +1,9 @@
 
-# PRUEBAS TRAMEADOS
-
 require(dplyr)
 require(tidyr)
 require(ggplot2)
 
 wroc <- function(x, ...) UseMethod("wroc")
-
-qcut <- function(x, g=10){
-  if(!is.numeric(g) || g <= 0) stop("g should be a positive integer.")
-  if(is.factor(x)){
-    warning("Converting factor to numeric.")
-    x <- as.numeric(x)
-  }
-  percentages <- seq(1/g, 1-(1/g), l=g-1)
-  qq <- quantile(x, percentages)
-  y <- cut(x,
-      breaks=c(-Inf,
-               unique(qq),
-               Inf),
-      right=TRUE)
-  list(
-    x = y,
-    percentages = c(round(percentages, 3), 1)
-  )
-}
 
 reset.buckets <- function(x){
   x$info$bucket <- 0:(nrow(x$info)-1)
@@ -162,6 +141,36 @@ wroc.default <- function(predictions, labels, ngroups=50, level.bad=1, col.bad=1
   out$ngroups <- nrow(out$info) - 1
   out$nspecial <- nrow(out$special)
 
+  out
+}
+
+wroc.formula <- function(formula, data, ngroups = 50, level.bad=1,
+                         special.values=NULL){
+  if(is.null(special.values)){
+    special.values <- list()
+  } else if((!(is.list(special.values)) && !is.numeric(special.values))
+            ||
+            (is.list(special.values) && is.null(names(special.values)))){
+    stop('special.values must be either a named list with a vector of special values for each variable or a single vector of special values common to all the variables.')
+  }
+
+  reuse_special <- (is.numeric(special.values) || is.null(special.values))
+
+  ds <- model.frame(formula, data)
+  y <- ds[[1]]
+  ds <- ds[-1]
+
+  out <- lapply(1:ncol(ds), function(j){
+    if(reuse_special){
+      spvals <- special.values
+    } else {
+      spvals <- special.values[[names(ds)[j]]]
+    }
+    wroc(ds[[j]], y, ngroups = ngroups, level.bad = level.bad,
+         special.values = spvals)
+  })
+  names(out) <- names(ds)
+  class(out) <- c('wroc.list','list')
   out
 }
 
@@ -367,7 +376,6 @@ subset.wroc <- function(x, buckets = NULL, ...){
   out
 }
 
-
 analyze.wroc <- function(x,
                          nbuckets = 5,
                          trend = c('auto','upper','lower')){
@@ -430,82 +438,13 @@ analyze.wroc <- function(x,
   out
 }
 
-wroc.formula <- function(formula, data, ngroups = 50, level.bad=1,
-                         special.values=NULL){
-  if(is.null(special.values)){
-    special.values <- list()
-  } else if((!(is.list(special.values)) && !is.numeric(special.values))
-            ||
-            (is.list(special.values) && is.null(names(special.values)))){
-    stop('special.values must be either a named list with a vector of special values for each variable or a single vector of special values common to all the variables.')
-  }
-
-  reuse_special <- (is.numeric(special.values) || is.null(special.values))
-
-  ds <- model.frame(formula, data)
-  y <- ds[[1]]
-  ds <- ds[-1]
-
-  out <- lapply(1:ncol(ds), function(j){
-    if(reuse_special){
-      spvals <- special.values
-    } else {
-      spvals <- special.values[[names(ds)[j]]]
-    }
-    wroc(ds[[j]], y, ngroups = ngroups, level.bad = level.bad,
-         special.values = spvals)
-  })
-  names(out) <- names(ds)
-  class(out) <- c('wroc.list','list')
-  out
-}
-
-`[.wroc.list` <- function(x, i){
-  out <- x
-  class(out) <- 'list'
-  out <- out[i]
-  class(out) <- c('wroc.list','list')
-  out
-}
-
-subset.wroc.list <- function(x, keep=NULL, drop=NULL){
-  if((!(is.character(keep)) && !is.null(keep))
-     ||
-     (!(is.character(drop)) && !is.null(drop))){
-    stop('keep and drop must be either character vectors or have a NULL value.')
-  }
-  if(is.null(keep)){
-    keep <- names(x)
-  } else {
-    drop <- drop[which(!(drop %in% keep))]
-  }
-
-  ix <- which((names(x) %in% keep) & !(names(x) %in% drop))
-  x[ix]
-}
-
-c.wroc.list <- function(...){
+c.wroc <- function(...){
   ar <- list(...)
-  vars <- unlist(lapply(ar, names))
-  if(any(duplicated(vars))){
-    stop(sprintf('The following variables are present in two or more of the wroc.list objects: %s. Please make sure each variable appears only once.',
-                 paste(unique(vars[duplicated(vars)]), collapse = ', ')))
+  if(is.null(names(ar))){
+    stop('The arguments to c.wroc must be named and the names must coincide with the names of the variables used to construct the wroc objects.')
   }
-  out <- unlist(ar, recursive = FALSE)
-  class(out) <- c('wroc.list', 'wroc')
-  out
-}
-
-optimize.wroc.list <- function(x, trends = 'auto'){
-  if((length(trends) != length(x)) && (trends != 'auto')){
-    stop('trends must be either "auto" or a character vector with a trend for each vriable.')
-  } else if((length(trends) == 1) && (trends == 'auto')){
-    trends <- rep('auto', length(x))
-  }
-  for(i in 1:length(x)){
-    x[[i]] <- optimize.wroc(x[[i]], trends[i])
-  }
-  x
+  class(ar) <- c('wroc.list', 'list')
+  ar
 }
 
 predict.wroc <- function(object,
@@ -543,29 +482,7 @@ predict.wroc <- function(object,
   }
 }
 
-predict.wroc.list <- function(object,
-                              newdata,
-                              type = c('woe','bucket','p_bad'),
-                              keep.data = FALSE,
-                              prefix = type){
-  yhats <- list()
-  for(i in 1:length(object)){
-    variable <- names(object)[i]
-    yhats[[variable]] <- predict(object[[i]],
-                                 newdata,
-                                 variable,
-                                 type,
-                                 keep.data = FALSE,
-                                 prefix)
-  }
-  names(yhats) <- sprintf('%s_%s', prefix, names(object))
-  yhats <- as.data.frame(yhats)
-  if(keep.data){
-    return(cbind(newdata, yhats))
-  } else{
-    return(yhats)
-  }
-}
+
 
 
 
