@@ -165,10 +165,11 @@ owrs <- optimize.wroc.list(wrs, 'auto')
 owrs
 
 # Use a wroc object to paste WoE (or any other variable in a wroc$info table, such as bucket number or probability of default)
-predict.wroc(object = wrs$w, newdata = head(d),
+predict(object = wrs$w, newdata = head(d),
              variable = 'w', type = 'woe', keep.data = T)
 
-
+# Use a wroc.list object to paste several WoEs in one step
+predict(object = wrs, newdata = head(d), type = 'woe', keep.data = T)
 
 
 

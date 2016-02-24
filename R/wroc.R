@@ -543,6 +543,30 @@ predict.wroc <- function(object,
   }
 }
 
+predict.wroc.list <- function(object,
+                              newdata,
+                              type = c('woe','bucket','p_bad'),
+                              keep.data = FALSE,
+                              prefix = type){
+  yhats <- list()
+  for(i in 1:length(object)){
+    variable <- names(object)[i]
+    yhats[[variable]] <- predict(object[[i]],
+                                 newdata,
+                                 variable,
+                                 type,
+                                 keep.data = FALSE,
+                                 prefix)
+  }
+  names(yhats) <- sprintf('%s_%s', prefix, names(object))
+  yhats <- as.data.frame(yhats)
+  if(keep.data){
+    return(cbind(newdata, yhats))
+  } else{
+    return(yhats)
+  }
+}
+
 
 
 #compactify.wroc
