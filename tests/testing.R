@@ -108,12 +108,21 @@ bads <- data.frame(
 
 d <- rbind(goods, bads) %>%
   mutate(y = factor(y),
-         z = 2*x + 1 + rnorm(ng, 0, 5))
+         z = 2*x + 1 + rnorm(ng+nb, 0, 5),
+         w = round(x - z  - 1 + rnorm(ng+nb, 0, 1)),
+         w = ifelse(runif(ng+nb) < 0.01,
+                    -999,
+                    ifelse(runif(ng+nb) < 0.01,
+                           -998,
+                           w)))
 
 ggplot(d, aes(x, fill=y)) +
   geom_density(alpha=0.5)
 
 ggplot(d, aes(z, fill=y)) +
+  geom_density(alpha=0.5)
+
+ggplot(d, aes(w, fill=y)) +
   geom_density(alpha=0.5)
 
 #### Example
@@ -138,7 +147,8 @@ plot(wr3, type='woe')
 plot(wr4 <- analyze.wroc(wr, 7), 'woe')
 
 # With a formula for multiple variables at once
-wrs <- wroc(y ~ x + z, d, ngroups = 20, level.bad = 1)
+wrs <- wroc(y ~ x + z + w, d, ngroups = 20, level.bad = 1,
+            special.values = list(w = c(-999,-998)))
 
 # Manipulate wroc.list objects
 subset(wrs, keep=NULL, drop='z')
@@ -147,7 +157,7 @@ wrs['z']
 wrs[2]
 
 wrs2 <- wrs
-names(wrs2) <- c('a','b')
+names(wrs2) <- c('a','b','c')
 c(wrs, wrs2)
 
 # Optimize a bunch of variables

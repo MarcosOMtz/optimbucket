@@ -290,7 +290,7 @@ optimize.wroc <- function(x, trend = c('auto','upper','lower')){
   buckets_to_remove <- which(!(1:x$ngroups %in% ixx))
   out <- subset(x, buckets = buckets_to_remove)
 
-  out$removed.buckets <- c(x$removed.buckets, buckets_to_remove)
+  # out$removed.buckets <- c(x$removed.buckets, buckets_to_remove)
   out$trend <- trend
   out$call.optimize <- match.call()
 
@@ -362,7 +362,7 @@ subset.wroc <- function(x, buckets = NULL, ...){
   out$info$upper_limit <- c(-Inf, ds$upper_limit[-(ix)])
   out$ngroups <- nrow(out$info) - 1
   out$call.subset <- match.call()
-  out$pasted_buckets <- buckets
+  out$pasted.buckets <- buckets
   class(out) <- c('subset.wroc', class(out))
   out
 }
@@ -423,7 +423,6 @@ analyze.wroc <- function(x,
 
   out <- subset(x, buckets = buckets_to_paste)
   out$trend <- trend
-  out$pasted_buckets <- buckets_to_paste
   out$gini_at_start <- gini_at_start
   out$gini <- gini
   out$gini_loss <- gini_loss
@@ -509,7 +508,9 @@ optimize.wroc.list <- function(x, trends = 'auto'){
   x
 }
 
+woeize.wroc <- function(x, data, keep.data = FALSE){
 
+}
 
 #compactify.wroc
 
