@@ -148,7 +148,7 @@ plot(wr4 <- analyze.wroc(wr, 7), 'woe')
 
 # With a formula for multiple variables at once
 wrs <- wroc(y ~ x + z + w, d, ngroups = 20, level.bad = 1,
-            special.values = list(w = c(-999,-998)))
+            special.values = list(w = c(-998, -999)))
 
 # Manipulate wroc.list objects
 subset(wrs, keep=NULL, drop='z')
@@ -163,3 +163,20 @@ c(wrs, wrs2)
 # Optimize a bunch of variables
 owrs <- optimize.wroc.list(wrs, 'auto')
 owrs
+
+# Use a wroc object to paste WoE (or any other variable in a wroc$info table, such as bucket number or probability of default)
+predict.wroc(object = wrs$w, newdata = head(d),
+             variable = 'w', type = 'woe', keep.data = T)
+
+
+
+
+
+
+
+
+
+
+
+
+

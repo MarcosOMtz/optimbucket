@@ -508,9 +508,42 @@ optimize.wroc.list <- function(x, trends = 'auto'){
   x
 }
 
-woeize.wroc <- function(x, data, keep.data = FALSE){
+predict.wroc <- function(object,
+                         newdata,
+                         variable,
+                         type = c('woe','bucket','p_bad'),
+                         keep.data = FALSE,
+                         prefix = type){
+  type <- type[1]
+  if(nrow(object$special) > 0){
+    spec <- cbind(object$special, special=TRUE)
+  } else {
+    spec <- NULL
+  }
+  vals <- rbind(
+    spec,
+    cbind(object$info[-1,], special = FALSE)
+    )%>%
+    .[c(type, 'lower_limit', 'upper_limit', 'special')]
+  ix <- sapply(newdata[[variable]], function(i){
+    ifelse(vals$special,
+           (vals$lower_limit == i) & (i == vals$upper_limit),
+           (vals$lower_limit < i) & (i <= vals$upper_limit)) %>%
+      which %>%
+      min
+  })
+  yhat <- vals[[type]][ix]
 
+  if(keep.data){
+    woe_name <- sprintf('%s_%s', prefix, variable)
+    newdata[woe_name] <- yhat
+    return(newdata)
+  } else{
+    return(yhat)
+  }
 }
+
+
 
 #compactify.wroc
 
