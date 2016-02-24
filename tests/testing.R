@@ -1,4 +1,4 @@
-#### Datos 1
+#### Data 1
 ng <- 10000
 nb <- 1000
 
@@ -17,7 +17,7 @@ d <- rbind(goods, bads) %>%
 ggplot(d, aes(x, fill=y)) +
   geom_density(alpha=0.5)
 
-#### Datos 2
+#### Data 2
 ng <- 1000
 nb <- 100
 
@@ -36,7 +36,7 @@ d <- rbind(goods, bads) %>%
 ggplot(d, aes(x, fill=y)) +
   geom_density(alpha=0.5)
 
-#### Datos 3
+#### Data 3
 ng <- 10000
 nb <- 1000
 
@@ -55,7 +55,7 @@ d <- rbind(goods, bads) %>%
 ggplot(d, aes(x, fill=y)) +
   geom_density(alpha=0.5)
 
-#### Datos 4
+#### Data 4
 ng <- 10000
 nb <- 1000
 
@@ -74,7 +74,7 @@ d <- rbind(goods, bads) %>%
 ggplot(d, aes(x, fill=y)) +
   geom_density(alpha=0.5)
 
-#### Datos 5
+#### Data 5
 ng <- 10000
 nb <- 1000
 
@@ -93,7 +93,7 @@ d <- rbind(goods, bads) %>%
 ggplot(d, aes(x, fill=y)) +
   geom_density(alpha=0.5)
 
-#### Datos 6 MULTI
+#### Data 6 MULTI
 ng <- 10000
 nb <- 1000
 
@@ -116,7 +116,7 @@ ggplot(d, aes(x, fill=y)) +
 ggplot(d, aes(z, fill=y)) +
   geom_density(alpha=0.5)
 
-#### Ejemplo
+#### Example
 
 wr <- wroc(d$x, d$y, ngroups=20)
 performance.wroc(wr)
@@ -130,12 +130,14 @@ plot(wr2)
 plot(wr2, type='trend')
 plot(wr2, type='woe')
 
-# Trameado manual usando subset
+# Manual bucketing
 wr3 <- subset(wr, c(1:5,7:17,19:26,28:33,35:36,38:39,43))
 plot(wr3, type='woe')
 
-# Análisis
+# Analysis of the optimal path
 plot(wr4 <- analyze.wroc(wr, 7), 'woe')
 
+# With a formula for multiple variables at once
+wrs <- wroc(y ~ x + z, d, ngroups = 20, level.bad = 1)
 
 

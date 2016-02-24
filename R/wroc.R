@@ -461,7 +461,6 @@ wroc.formula <- function(formula, data, ngroups = 50, level.bad=1,
   out
 }
 
-wrs <- wroc(y ~ x + z, d, ngroups = 20, level.bad = 1)
 
 #compactify.wroc
 
