@@ -140,4 +140,16 @@ plot(wr4 <- analyze.wroc(wr, 7), 'woe')
 # With a formula for multiple variables at once
 wrs <- wroc(y ~ x + z, d, ngroups = 20, level.bad = 1)
 
+# Manipulate wroc.list objects
+subset(wrs, keep=NULL, drop='z')
+wrs[c('x','z')]
+wrs['z']
+wrs[2]
 
+wrs2 <- wrs
+names(wrs2) <- c('a','b')
+c(wrs, wrs2)
+
+# Optimize a bunch of variables
+owrs <- optimize.wroc.list(wrs, 'auto')
+owrs
