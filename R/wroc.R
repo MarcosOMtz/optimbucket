@@ -431,25 +431,37 @@ analyze.wroc <- function(x,
   out
 }
 
-#
-# plot(subset.wroc(ww,1:2), type='woe')
-#
-# a <- data.frame(
-#   matrix(
-#     c(
-#       10,25,50,
-#       20,35,25,
-#       30,30,20,
-#       40,10,5
-#     ),
-#     byrow=T, ncol=3
-#   )
-# )
-# names(a) <- c('var','bad','good')
-#
-# ww <- wroc(a$var, a[c('bad','good')], ngroups=4, col.bad = 1)
-# x <- ww
-# plot(ww)
+wroc.formula <- function(formula, data, ngroups = 50, level.bad=1,
+                         special.values=NULL){
+  if(is.null(special.values)){
+    special.values <- list()
+  } else if((!(is.list(special.values)) && !is.numeric(special.values))
+            ||
+            (is.list(special.values) && is.null(names(special.values)))){
+    stop('special.values must be either a named list with a vector of special values for each variable or a single vector of special values common to all the variables.')
+  }
+
+  reuse_special <- (is.numeric(special.values) || is.null(special.values))
+
+  ds <- model.frame(formula, data)
+  y <- ds[[1]]
+  ds <- ds[-1]
+
+  out <- lapply(1:ncol(ds), function(j){
+    if(reuse_special){
+      spvals <- special.values
+    } else {
+      spvals <- special.values[[names(ds)[j]]]
+    }
+    wroc(ds[[j]], y, ngroups = ngroups, level.bad = level.bad,
+         special.values = spvals)
+  })
+  names(out) <- names(ds)
+  class(out) <- 'wroc.conglomerate'
+  out
+}
+
+wrs <- wroc(y ~ x + z, d, ngroups = 20, level.bad = 1)
 
 #compactify.wroc
 
