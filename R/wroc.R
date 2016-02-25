@@ -5,6 +5,7 @@ require(ggplot2)
 
 wroc <- function(x, ...) UseMethod("wroc")
 
+# Local helper functions
 reset.buckets <- function(x){
   x$info$bucket <- 0:(nrow(x$info)-1)
   x
@@ -37,6 +38,7 @@ choose.trend_ <- function(x){
   trend
 }
 
+# wroc signatures
 wroc.default <- function(predictions, labels, ngroups=50, level.bad=1, col.bad=1,
                          special.values = NULL){
   if(!is.numeric(predictions)){
@@ -174,6 +176,162 @@ wroc.formula <- function(formula, data, ngroups = 50, level.bad=1,
   out
 }
 
+# wroc methods
+analyze.wroc <- function(x,
+                         nbuckets = 5,
+                         trend = c('auto','upper','lower')){
+
+  if(is.null(nbuckets) || nbuckets < 0 || !is.numeric(nbuckets)){
+    message('analyze.wroc: Invalid number of buckets. Optimizing instead.')
+    return(optimize.wroc(x, trend))
+  }
+
+  if(!(trend[1] %in% c('auto','upper','lower'))){
+    warning('Invalid trend. Only "upper", "lower" or "auto" are valid. Defaulting to "auto".')
+    trend <- 'auto'
+  }
+  if(trend[1] == 'auto'){
+    trend <- choose.trend_(x)
+  }
+
+  if(x$ngroups < nbuckets){
+    stop("Cannot remove more buckets than there are!")
+  }
+
+  ds <- x$info
+
+  tr <- performance.wroc.info_(x$info, trend = trend)
+
+
+  buckets_to_paste <- numeric(x$ngroups - nbuckets)
+  gini_loss <- numeric(x$ngroups - nbuckets)
+  gini <- numeric(x$ngroups - nbuckets)
+  for(k in 1:(x$ngroups-nbuckets)){
+    j <- which.min(tr$delta_area)
+    buckets_to_paste[k] <- tr$bucket[j]
+    tr <- tr[-j,]
+    if(j == 2){
+      aux <- tr[1:3,]
+      tr[2,] <- performance.wroc.info_(aux, trend = trend)[2,]
+    } else if(j > 2 && j < nrow(ds)){
+      aux <- tr[(j-2):(j+1),]
+      tr[(j-1):j,] <- performance.wroc.info_(aux, trend = trend)[2:3,]
+    }
+    gini[k] <- 2*sum(tr$area_gini, na.rm = T)
+    if(k == 1){
+      if(trend[1] == 'upper'){
+        gini_at_start <- performance.wroc(x)$gini_up
+      } else {
+        gini_at_start <- performance.wroc(x)$gini_down
+      }
+      gini_loss[k] <- gini_at_start - gini[k]
+    } else {
+      gini_loss[k] <- gini[k-1] - gini[k]
+    }
+  }
+
+  out <- subset(x, buckets = buckets_to_paste)
+  out$trend <- trend
+  out$gini_at_start <- gini_at_start
+  out$gini <- gini
+  out$gini_loss <- gini_loss
+  out$class <- c('analyze.wroc', class(out))
+  out
+}
+
+c.wroc <- function(...){
+  ar <- list(...)
+  if(is.null(names(ar))){
+    stop('The arguments to c.wroc must be named and the names must coincide with the names of the variables used to construct the wroc objects.')
+  }
+  class(ar) <- c('wroc.list', 'list')
+  ar
+}
+
+optimize.wroc <- function(x, trend = c('auto','upper','lower')){
+  if('optimal.wroc' %in% class(x)){
+    warning('This is an already optimal ROC curve. Returning the input ROC curve. ')
+    return(x)
+  } else if('subset.wroc' %in% class(x)){
+    warning('This ROC curve has been manually tampered with. Resetting bucket names.')
+    x <- reset.buckets(x)
+  }
+  ds <- x$info
+  if(!(trend[1] %in% c('auto','upper','lower'))){
+    warning('Invalid trend. Only "upper", "lower" or "auto" are valid. Defaulting to "auto".')
+    trend <- 'auto'
+  }
+  if(trend[1] == 'auto'){
+    trend <- choose.trend_(x)
+  }
+
+  which.fun <- ifelse(trend[1] == 'upper', which.max, which.min)
+
+  jumps <- sapply(1:(nrow(ds)-1), function(i){
+    len <- nrow(ds)
+    dx <- ds$d_ac_good[(i+1):len] - ds$d_ac_good[i]
+    dy <- ds$d_ac_bad[(i+1):len] - ds$d_ac_bad[i]
+    j <- ifelse(all(dy == 0) || all(dx == 0), length(dy),
+                which.fun(ifelse(dx == 0, Inf, dy/dx)))
+    j
+  })
+
+  ix <- rep(1, length(jumps)+1)
+  i <- 1
+  while(i <= length(jumps)){
+    if(jumps[i] > 1){
+      ix[i+1] <- jumps[i]
+      ix[(i+2):(i+jumps[i])] <- 0
+      i <- i + jumps[i]
+    } else{
+      i <- i + 1
+    }
+  }
+
+  aux <- cumsum(ix) - 1
+  ixx <- unique(aux)
+  buckets_to_remove <- which(!(1:x$ngroups %in% ixx))
+  out <- subset(x, buckets = buckets_to_remove)
+
+  # out$removed.buckets <- c(x$removed.buckets, buckets_to_remove)
+  out$trend <- trend
+  out$call.optimize <- match.call()
+
+  class(out) <- c('optimal.wroc', 'wroc')
+  out
+}
+
+performance.wroc <- function(x){
+  ds <- x$info
+
+  tr <- ds %>%
+    mutate(dx = (d_ac_good - dplyr::lag(d_ac_good)),
+           bases_auc = (d_ac_bad + dplyr::lag(d_ac_bad)),
+           bases_gini_up_raw = pmax(d_ac_bad - d_ac_good, 0),
+           bases_gini_up = bases_gini_up_raw + lag(bases_gini_up_raw),
+           bases_gini_down_raw = pmax(d_ac_good - d_ac_bad, 0),
+           bases_gini_down = bases_gini_down_raw + lag(bases_gini_down_raw),
+           area_auc = bases_auc*dx/2,
+           area_gini_up = bases_gini_up*dx/2,
+           area_gini_down = bases_gini_down*dx/2,
+           ks_prospect = abs(d_good - d_bad),
+           iv_contribution = (d_good - d_bad)*woe) %>%
+    .[-1,]
+
+  out <- list()
+  out$auc <- sum(tr$area_auc)
+  out$gini_two_way <- abs(2*out$auc - 1)
+  out$gini_up <- 2*sum(tr$area_gini_up)
+  out$gini_down <- 2*sum(tr$area_gini_down)
+  out$gini <- max(out$gini_up, out$gini_down)
+  out$best_trend <- ifelse(out$gini_up > out$gini_down, 'upper', 'lower')
+  out$ks <- max(tr$ks_prospect)
+  out$iv <- sum(tr$iv_contribution)
+
+  class(out) <- c('wroc.performance')
+  out
+}
+
 plot.wroc <- function(x,
                       type = c('accum','roc','trend','woe'),
                       include.special = TRUE){
@@ -252,89 +410,42 @@ plot.wroc <- function(x,
       labs(x = 'Bucket',
            y = 'Weight of Evidence')
   }
- p
+  p
 }
-optimize.wroc <- function(x, trend = c('auto','upper','lower')){
-  if('optimal.wroc' %in% class(x)){
-    warning('This is an already optimal ROC curve. Returning the input ROC curve. ')
-    return(x)
-  } else if('subset.wroc' %in% class(x)){
-    warning('This ROC curve has been manually tampered with. Resetting bucket names.')
-    x <- reset.buckets(x)
-  }
-  ds <- x$info
-  if(!(trend[1] %in% c('auto','upper','lower'))){
-    warning('Invalid trend. Only "upper", "lower" or "auto" are valid. Defaulting to "auto".')
-    trend <- 'auto'
-  }
-  if(trend[1] == 'auto'){
-    trend <- choose.trend_(x)
-  }
 
-  which.fun <- ifelse(trend[1] == 'upper', which.max, which.min)
-
-  jumps <- sapply(1:(nrow(ds)-1), function(i){
-    len <- nrow(ds)
-    dx <- ds$d_ac_good[(i+1):len] - ds$d_ac_good[i]
-    dy <- ds$d_ac_bad[(i+1):len] - ds$d_ac_bad[i]
-    j <- ifelse(all(dy == 0) || all(dx == 0), length(dy),
-                which.fun(ifelse(dx == 0, Inf, dy/dx)))
-    j
+predict.wroc <- function(object,
+                         newdata,
+                         variable,
+                         type = c('woe','bucket','p_bad'),
+                         keep.data = FALSE,
+                         prefix = type){
+  type <- type[1]
+  if(nrow(object$special) > 0){
+    spec <- cbind(object$special, special=TRUE)
+  } else {
+    spec <- NULL
+  }
+  vals <- rbind(
+    spec,
+    cbind(object$info[-1,], special = FALSE)
+  )%>%
+    .[c(type, 'lower_limit', 'upper_limit', 'special')]
+  ix <- sapply(newdata[[variable]], function(i){
+    ifelse(vals$special,
+           (vals$lower_limit == i) & (i == vals$upper_limit),
+           (vals$lower_limit < i) & (i <= vals$upper_limit)) %>%
+      which %>%
+      min
   })
+  yhat <- vals[[type]][ix]
 
-  ix <- rep(1, length(jumps)+1)
-  i <- 1
-  while(i <= length(jumps)){
-    if(jumps[i] > 1){
-      ix[i+1] <- jumps[i]
-      ix[(i+2):(i+jumps[i])] <- 0
-      i <- i + jumps[i]
-    } else{
-      i <- i + 1
-    }
+  if(keep.data){
+    woe_name <- sprintf('%s_%s', prefix, variable)
+    newdata[woe_name] <- yhat
+    return(newdata)
+  } else{
+    return(yhat)
   }
-
-  aux <- cumsum(ix) - 1
-  ixx <- unique(aux)
-  buckets_to_remove <- which(!(1:x$ngroups %in% ixx))
-  out <- subset(x, buckets = buckets_to_remove)
-
-  # out$removed.buckets <- c(x$removed.buckets, buckets_to_remove)
-  out$trend <- trend
-  out$call.optimize <- match.call()
-
-  class(out) <- c('optimal.wroc', 'wroc')
-  out
-}
-
-performance.wroc <- function(x){
-  ds <- x$info
-
-  tr <- ds %>%
-    mutate(dx = (d_ac_good - dplyr::lag(d_ac_good)),
-           bases_auc = (d_ac_bad + dplyr::lag(d_ac_bad)),
-           bases_gini_up_raw = pmax(d_ac_bad - d_ac_good, 0),
-           bases_gini_up = bases_gini_up_raw + lag(bases_gini_up_raw),
-           bases_gini_down_raw = pmax(d_ac_good - d_ac_bad, 0),
-           bases_gini_down = bases_gini_down_raw + lag(bases_gini_down_raw),
-           area_auc = bases_auc*dx/2,
-           area_gini_up = bases_gini_up*dx/2,
-           area_gini_down = bases_gini_down*dx/2,
-           ks_prospect = abs(d_good - d_bad),
-           iv_contribution = (d_good - d_bad)*woe) %>%
-    .[-1,]
-
-  out <- list()
-  out$auc <- sum(tr$area_auc)
-  out$gini_two_way <- abs(2*out$auc - 1)
-  out$gini_up <- 2*sum(tr$area_gini_up)
-  out$gini_down <- 2*sum(tr$area_gini_down)
-  out$gini <- max(out$gini_up, out$gini_down)
-  out$ks <- max(tr$ks_prospect)
-  out$iv <- sum(tr$iv_contribution)
-
-  class(out) <- c('wroc.performance')
-  out
 }
 
 subset.wroc <- function(x, buckets = NULL, ...){
@@ -376,111 +487,61 @@ subset.wroc <- function(x, buckets = NULL, ...){
   out
 }
 
-analyze.wroc <- function(x,
-                         nbuckets = 5,
-                         trend = c('auto','upper','lower')){
-
-  if(is.null(nbuckets) || nbuckets < 0 || !is.numeric(nbuckets)){
-    message('analyze.wroc: Invalid number of buckets. Optimizing instead.')
-    return(optimize.wroc(x, trend))
+# summary.wroc and its methods
+summary.wroc <- function(object, performance = TRUE, ...){
+  out <- list()
+  if(object$nspecial > 0){
+    spvals <- cbind(type='special', object$special)
+  } else{
+    spvals <- NULL
   }
 
-  if(!(trend[1] %in% c('auto','upper','lower'))){
-    warning('Invalid trend. Only "upper", "lower" or "auto" are valid. Defaulting to "auto".')
-    trend <- 'auto'
+  out$info <- rbind(
+    spvals,
+    cbind(type='normal', object$info[-1,])) %>%
+    mutate(range = ifelse(row_number() == n(),
+                          sprintf('(%.2f, %.2f]', lower_limit, upper_limit),
+                          sprintf('(%.2f, %.2f)', lower_limit, upper_limit))) %>%
+    dplyr::select(bucket, type, lower_limit, upper_limit, range,
+                  n_good, n_bad, population, p_bad,
+                  d_population, woe)
+  if(performance){
+    out <- c(out, performance.wroc(object))
   }
-  if(trend[1] == 'auto'){
-    trend <- choose.trend_(x)
-  }
-
-  if(x$ngroups < nbuckets){
-    stop("Cannot remove more buckets than there are!")
-  }
-
-  ds <- x$info
-
-  tr <- performance.wroc.info_(x$info, trend = trend)
-
-
-  buckets_to_paste <- numeric(x$ngroups - nbuckets)
-  gini_loss <- numeric(x$ngroups - nbuckets)
-  gini <- numeric(x$ngroups - nbuckets)
-  for(k in 1:(x$ngroups-nbuckets)){
-    j <- which.min(tr$delta_area)
-    buckets_to_paste[k] <- tr$bucket[j]
-    tr <- tr[-j,]
-    if(j == 2){
-      aux <- tr[1:3,]
-      tr[2,] <- performance.wroc.info_(aux, trend = trend)[2,]
-    } else if(j > 2 && j < nrow(ds)){
-      aux <- tr[(j-2):(j+1),]
-      tr[(j-1):j,] <- performance.wroc.info_(aux, trend = trend)[2:3,]
-    }
-    gini[k] <- 2*sum(tr$area_gini, na.rm = T)
-    if(k == 1){
-      if(trend[1] == 'upper'){
-        gini_at_start <- performance.wroc(x)$gini_up
-      } else {
-        gini_at_start <- performance.wroc(x)$gini_down
-      }
-      gini_loss[k] <- gini_at_start - gini[k]
-    } else {
-      gini_loss[k] <- gini[k-1] - gini[k]
-    }
-  }
-
-  out <- subset(x, buckets = buckets_to_paste)
-  out$trend <- trend
-  out$gini_at_start <- gini_at_start
-  out$gini <- gini
-  out$gini_loss <- gini_loss
-  out$class <- c('analyze.wroc', class(out))
+  out$performance <- performance
+  class(out) <- c('summary.wroc')
   out
 }
 
-c.wroc <- function(...){
-  ar <- list(...)
-  if(is.null(names(ar))){
-    stop('The arguments to c.wroc must be named and the names must coincide with the names of the variables used to construct the wroc objects.')
+print.summary.wroc <- function(x, extended = FALSE, ...){
+  regular <- filter(x$info, type == 'normal')
+  special <- filter(x$info, type == 'special')
+  out <- sprintf(
+    'Regular Buckets: %d\nSpecial Buckets: %d\nTotal Population: %d\nSpecial Population: %d (%.2f%%)\nSmallest bucket Pop.: %d (%.2f%%)',
+    nrow(regular), nrow(special),
+    sum(regular$population),
+    sum(special$population),
+    100*sum(special$population)/sum(regular$population),
+    min(regular$population), 100*min(regular$d_population)
+  )
+
+  if(x$performance){
+    out <- sprintf(
+      'Gini Index: %.2f%% (trend: %s)\nAUC: %.3f\nKolmogorov-Smirnov Statistic: %.3f\nInformation Value: %.3f\n\n%s)',
+      100*x$gini, x$best_trend, x$auc, x$ks, x$iv,
+      out
+    )
   }
-  class(ar) <- c('wroc.list', 'list')
-  ar
+  cat(out)
+  if(extended){
+    cat('\n\nDetails:\n\n')
+    print(x$info)
+  }
 }
 
-predict.wroc <- function(object,
-                         newdata,
-                         variable,
-                         type = c('woe','bucket','p_bad'),
-                         keep.data = FALSE,
-                         prefix = type){
-  type <- type[1]
-  if(nrow(object$special) > 0){
-    spec <- cbind(object$special, special=TRUE)
-  } else {
-    spec <- NULL
-  }
-  vals <- rbind(
-    spec,
-    cbind(object$info[-1,], special = FALSE)
-    )%>%
-    .[c(type, 'lower_limit', 'upper_limit', 'special')]
-  ix <- sapply(newdata[[variable]], function(i){
-    ifelse(vals$special,
-           (vals$lower_limit == i) & (i == vals$upper_limit),
-           (vals$lower_limit < i) & (i <= vals$upper_limit)) %>%
-      which %>%
-      min
-  })
-  yhat <- vals[[type]][ix]
 
-  if(keep.data){
-    woe_name <- sprintf('%s_%s', prefix, variable)
-    newdata[woe_name] <- yhat
-    return(newdata)
-  } else{
-    return(yhat)
-  }
-}
+
+
 
 
 

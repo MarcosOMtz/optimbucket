@@ -3,28 +3,13 @@ require(dplyr)
 require(tidyr)
 require(ggplot2)
 
+# wroc.list methods
 `[.wroc.list` <- function(x, i){
   out <- x
   class(out) <- 'list'
   out <- out[i]
   class(out) <- c('wroc.list','list')
   out
-}
-
-subset.wroc.list <- function(x, keep=NULL, drop=NULL){
-  if((!(is.character(keep)) && !is.null(keep))
-     ||
-     (!(is.character(drop)) && !is.null(drop))){
-    stop('keep and drop must be either character vectors or have a NULL value.')
-  }
-  if(is.null(keep)){
-    keep <- names(x)
-  } else {
-    drop <- drop[which(!(drop %in% keep))]
-  }
-
-  ix <- which((names(x) %in% keep) & !(names(x) %in% drop))
-  x[ix]
 }
 
 c.wroc.list <- function(...){
@@ -73,4 +58,20 @@ predict.wroc.list <- function(object,
   } else{
     return(yhats)
   }
+}
+
+subset.wroc.list <- function(x, keep=NULL, drop=NULL){
+  if((!(is.character(keep)) && !is.null(keep))
+     ||
+     (!(is.character(drop)) && !is.null(drop))){
+    stop('keep and drop must be either character vectors or have a NULL value.')
+  }
+  if(is.null(keep)){
+    keep <- names(x)
+  } else {
+    drop <- drop[which(!(drop %in% keep))]
+  }
+
+  ix <- which((names(x) %in% keep) & !(names(x) %in% drop))
+  x[ix]
 }

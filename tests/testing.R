@@ -127,12 +127,17 @@ ggplot(d, aes(w, fill=y)) +
 
 #### Example
 
+# Create and examine a  wroc object
 wr <- wroc(d$x, d$y, ngroups=20)
+summary(wr) # Just the global details
+summary(wr, performance = F) # Faster but less informative
+print(summary(wr), extended = TRUE)
 performance.wroc(wr)
 plot(wr)
 plot(wr, type='trend')
 plot(wr, type='woe')
 
+# Optimal Gini bucketing
 wr2 <- optimize.wroc(wr, 'auto')
 performance.wroc(wr2)
 plot(wr2)
@@ -147,7 +152,7 @@ plot(wr3, type='woe')
 plot(wr4 <- analyze.wroc(wr, 7), 'woe')
 
 # With a formula for multiple variables at once
-wrs <- wroc(y ~ x + z + w, d, ngroups = 20, level.bad = 1,
+wrs <- wroc(y ~ x + z + w, d, ngroups = 50, level.bad = 1,
             special.values = list(w = c(-998, -999)))
 
 # Manipulate wroc.list objects
@@ -169,7 +174,7 @@ predict(object = wrs$w, newdata = head(d),
              variable = 'w', type = 'woe', keep.data = T)
 
 # Use a wroc.list object to paste several WoEs in one step
-predict(object = wrs, newdata = head(d), type = 'woe', keep.data = T)
+predict(object = owrs, newdata = head(d), type = 'woe', keep.data = T)
 
 
 
