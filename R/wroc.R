@@ -66,9 +66,9 @@ wroc.default <- function(predictions, labels, ngroups=50, level.bad=1, col.bad=1
   }
 
 
-  buckets <- rep(NA, length(special_ix))
+  buckets <- rep(NA, length(predictions))
   buckets[special_ix] <- special_buckets
-  if(is.na(ngroups)){
+  if(is.null(ngroups)){
     warning('Using exact ROC curve. This may be very slow for continuous variables! Try using a smaller number for ngroups.')
     buckets[!special_ix] <- 1:sum(!special_ix)
   } else{
@@ -290,7 +290,7 @@ optimize.wroc <- function(x, trend = c('auto','upper','lower')){
 
   aux <- cumsum(ix) - 1
   ixx <- unique(aux)
-  buckets_to_remove <- which(!(1:x$ngroups %in% ixx))
+  buckets_to_remove <- ds[-1,]$bucket[which(!(1:(nrow(ds)-1) %in% ixx))]
   out <- subset(x, buckets = buckets_to_remove)
 
   # out$removed.buckets <- c(x$removed.buckets, buckets_to_remove)
@@ -375,7 +375,7 @@ plot.wroc <- function(x,
       geom_bar(aes(y=norm_population, fill=barcol), stat='identity') +
       geom_point() +
       geom_line() +
-      geom_text(aes(y = 0, label=sprintf('%.2f %%',d_population)),
+      geom_text(aes(y = 0, label=sprintf('%.2f %%',100*d_population)),
                 size = 2, vjust=1)+#angle=90, hjust = -0.5) +
       scale_fill_identity() +
       scale_x_continuous(breaks=brks,labels=labls) +
@@ -402,7 +402,7 @@ plot.wroc <- function(x,
       geom_bar(aes(y=norm_population, fill=barcol), stat='identity') +
       geom_point() +
       geom_line() +
-      geom_text(aes(y = 0, label=sprintf('%.2f %%',d_population)),
+      geom_text(aes(y = 0, label=sprintf('%.2f %%',100*d_population)),
                 size = 2, vjust=1)+#angle=90, hjust = -0.5) +
       scale_fill_identity() +
       scale_x_continuous(breaks=brks,labels=labls) +
@@ -499,7 +499,7 @@ summary.wroc <- function(object, performance = TRUE, ...){
   out$info <- rbind(
     spvals,
     cbind(type='normal', object$info[-1,])) %>%
-    mutate(range = ifelse(row_number() == n(),
+    mutate(range = ifelse(row_number() < n(),
                           sprintf('(%.2f, %.2f]', lower_limit, upper_limit),
                           sprintf('(%.2f, %.2f)', lower_limit, upper_limit))) %>%
     dplyr::select(bucket, type, lower_limit, upper_limit, range,
