@@ -345,7 +345,7 @@ plot.wroc <- function(x,
       geom_line(size=1) +
       geom_point() +
       geom_point(size=1.5, shape=1, color='black') +
-      scale_color_gradientn(colors = c('blue','green','yellow','red'))
+      scale_color_gradientn(colours = c('blue','green','yellow','red'))
   } else if(type[1] == 'roc'){
     p <- x$info %>%
       ggplot(aes(1-d_ac_good, 1-d_ac_bad, color=bucket)) +
@@ -354,7 +354,7 @@ plot.wroc <- function(x,
       geom_line(size=1) +
       geom_point() +
       geom_point(size=1.5, shape=1, color='black') +
-      scale_color_gradientn(colors = c('blue','green','yellow','red')) +
+      scale_color_gradientn(colours = c('blue','green','yellow','red')) +
       labs(x='fpr',y='tpr')
   } else if(type[1] == 'trend'){
     ds <- x$info[-1,]
