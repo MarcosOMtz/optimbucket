@@ -55,9 +55,9 @@ wroc.default <- function(predictions, labels, ngroups=50, level.bad=1, col.bad=1
     special_ix <- sapply(predictions, function(i){
       (i %in% special.values)
     })
-    special_buckets <- sapply(predictions[special_ix], function(i){
+    special_buckets <- as.numeric(sapply(predictions[special_ix], function(i){
       -which(i == special.values)
-    })
+    }))
     special_predictions <- predictions[special_ix]
     special_labels <- labels[special_ix]
   } else {
