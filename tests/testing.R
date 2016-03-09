@@ -145,7 +145,7 @@ plot(wr2, type='trend')
 plot(wr2, type='woe')
 
 # Manual bucketing
-wr3 <- subset(wr, c(1:5,7:17,19:26,28:33,35:36,38:39,43))
+wr3 <- subset(wr, c(1:5,7:17))
 plot(wr3, type='woe')
 
 # Analysis of the optimal path
