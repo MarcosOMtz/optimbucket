@@ -1,3 +1,7 @@
+require(dplyr)
+require(tidyr)
+require(ggplot2)
+
 #### Data 1
 ng <- 10000
 nb <- 1000

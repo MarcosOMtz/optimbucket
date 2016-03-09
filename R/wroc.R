@@ -379,6 +379,7 @@ plot.wroc <- function(x,
                 size = 2, vjust=1)+#angle=90, hjust = -0.5) +
       scale_fill_identity() +
       scale_x_continuous(breaks=brks,labels=labls) +
+      scale_y_continuous(labels = scales::percent) +
       theme(axis.text.x = element_text(angle=90)) +
       labs(x = 'Bucket',
            y = 'Default rate')
