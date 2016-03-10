@@ -450,7 +450,7 @@ predict.wroc <- function(object,
 }
 
 subset.wroc <- function(x, buckets = NULL, ...){
-  if(is.null(buckets)) return(x)
+  if(is.null(buckets) || length(buckets) == 0) return(x)
   if(any(buckets < 0)){
     stop('Cannot paste special valued buckets. Join the levels by hand before calling wroc.')
   } else {
