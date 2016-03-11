@@ -432,9 +432,8 @@ predict.wroc <- function(object,
   )%>%
     .[c(type, 'lower_limit', 'upper_limit', 'special')]
   ix <- sapply(newdata[[variable]], function(i){
-    ifelse(vals$special,
-           (vals$lower_limit == i) & (i == vals$upper_limit),
-           (vals$lower_limit < i) & (i <= vals$upper_limit)) %>%
+    ((vals$special & (vals$lower_limit == i) & (i == vals$upper_limit)) |
+      (!vals$special & (vals$lower_limit < i) & (i <= vals$upper_limit))) %>%
       which %>%
       min
   })
