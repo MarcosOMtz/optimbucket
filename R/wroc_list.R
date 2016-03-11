@@ -75,3 +75,18 @@ subset.wroc.list <- function(x, keep=NULL, drop=NULL){
   ix <- which((names(x) %in% keep) & !(names(x) %in% drop))
   x[ix]
 }
+
+performance.wroc.list <- function(x, out.type = c('list', 'data.frame')){
+  if(out.type[1] == 'data.frame'){
+    out <- rbind_all(lapply(1:length(x), function(i){
+      data.frame(var=names(x)[i], as.list(performance(x[[i]])), stringsAsFactors = F)
+    }))
+  } else if(out.type[1] == 'list'){
+    out <- lapply(x, function(y){
+      as.list(performance(y))
+    })
+  } else{
+    stop('out.type must be either "list" or "data.frame".')
+  }
+ return(out)
+}

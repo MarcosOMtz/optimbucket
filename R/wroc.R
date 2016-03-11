@@ -331,7 +331,7 @@ performance.wroc <- function(x){
   out$ks <- max(tr$ks_prospect)
   out$iv <- sum(tr$iv_contribution)
 
-  class(out) <- c('wroc.performance')
+  class(out) <- c('wroc.performance', 'list')
   out
 }
 
