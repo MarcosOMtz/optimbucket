@@ -39,7 +39,7 @@ choose.trend_ <- function(x){
 }
 
 # wroc signatures
-wroc.default <- function(predictions, labels, ngroups=50, level.bad=1, col.bad=1,
+wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad=1,
                          special.values = NULL){
   if(!is.numeric(predictions)){
     warning("Predictions should be numeric. Coercing to numeric.")
@@ -70,7 +70,7 @@ wroc.default <- function(predictions, labels, ngroups=50, level.bad=1, col.bad=1
   buckets[special_ix] <- special_buckets
   if(is.null(ngroups)){
     warning('Using exact ROC curve. This may be very slow for continuous variables! Try using a smaller number for ngroups.')
-    buckets[!special_ix] <- 1:sum(!special_ix)
+    buckets[!special_ix] <- factor(predictions[!special_ix])
   } else{
     # buckets <- as.numeric(cut2(predictions, g = ngroups))
     buckets[!special_ix] <- as.numeric(qcut(predictions[!special_ix], g = ngroups)$x)
