@@ -136,14 +136,14 @@ wr <- wroc(d$x, d$y, ngroups=20)
 summary(wr) # Just the global details
 summary(wr, performance = F) # Faster but less informative
 print(summary(wr), extended = TRUE)
-performance.wroc(wr)
+performance(wr)
 plot(wr)
 plot(wr, type='trend')
 plot(wr, type='woe')
 
 # Optimal Gini bucketing
-wr2 <- optimize.wroc(wr, 'auto')
-performance.wroc(wr2)
+wr2 <- optimize(wr, 'auto')
+performance(wr2)
 plot(wr2)
 plot(wr2, type='trend')
 plot(wr2, type='woe')
@@ -153,7 +153,7 @@ wr3 <- subset(wr, c(1:5,7:17))
 plot(wr3, type='woe')
 
 # Analysis of the optimal path
-plot(wr4 <- analyze.wroc(wr, 7), 'woe')
+plot(wr4 <- analyze(wr, 7), 'woe')
 
 # With a formula for multiple variables at once
 wrs <- wroc(y ~ x + z + w, d, ngroups = 50, level.bad = 1,
@@ -167,15 +167,15 @@ wrs[2]
 
 wrs2 <- wrs
 names(wrs2) <- c('a','b','c')
-c(wrs, wrs2)
+wrs3 <- c(wrs, wrs2)
 
 # Optimize a bunch of variables
-owrs <- optimize.wroc.list(wrs, 'auto')
+owrs <- optimize(wrs, 'auto')
 owrs
 
 # Use a wroc object to paste WoE (or any other variable in a wroc$info table, such as bucket number or probability of default)
 predict(object = wrs$w, newdata = head(d),
-             variable = 'w', type = 'woe', keep.data = T)
+        variable = 'w', type = 'woe', keep.data = T)
 
 # Use a wroc.list object to paste several WoEs in one step
 predict(object = owrs, newdata = head(d), type = 'woe', keep.data = T)

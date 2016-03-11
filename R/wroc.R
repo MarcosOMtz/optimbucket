@@ -4,6 +4,9 @@ require(tidyr)
 require(ggplot2)
 
 wroc <- function(x, ...) UseMethod("wroc")
+performance <- function(x, ...) UseMethod("performance")
+optimize <- function(x, ...) UseMethod("optimize")
+analyze <- function(x, ...) UseMethod("analyze")
 
 # Local helper functions
 reset.buckets <- function(x){
@@ -330,6 +333,11 @@ performance.wroc <- function(x){
 
   class(out) <- c('wroc.performance')
   out
+}
+
+performance.numeric <- function(predictions, labels, ...){
+  suppressWarnings(x <- wroc.default(predictions, labels, ...))
+  performance.wroc(x)
 }
 
 plot.wroc <- function(x,
