@@ -150,7 +150,7 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
 }
 
 wroc.formula <- function(formula, data, ngroups = 50, level.bad=1,
-                         special.values=NULL){
+                         special.values=NULL, verbose = (nrow(data) > 10000)){
   if(is.null(special.values)){
     special.values <- list()
   } else if((!(is.list(special.values)) && !is.numeric(special.values))
@@ -166,6 +166,9 @@ wroc.formula <- function(formula, data, ngroups = 50, level.bad=1,
   ds <- ds[-1]
 
   out <- lapply(1:ncol(ds), function(j){
+    if(verbose){
+      cat(sprintf('Variable # %d (%.0f %%):\t%s\n', j, 100*j/ncol(ds), names(ds)[j]))
+    }
     if(reuse_special){
       spvals <- special.values
     } else {
@@ -177,6 +180,10 @@ wroc.formula <- function(formula, data, ngroups = 50, level.bad=1,
   names(out) <- names(ds)
   class(out) <- c('wroc.list','list')
   out
+}
+
+print.wroc <- function(x, ...){
+  print(summary(x, performance = F), extended = T)
 }
 
 # wroc methods
@@ -512,7 +519,8 @@ summary.wroc <- function(object, performance = TRUE, ...){
                           sprintf('(%.2f, %.2f)', lower_limit, upper_limit))) %>%
     dplyr::select(bucket, type, lower_limit, upper_limit, range,
                   n_good, n_bad, population, p_bad,
-                  d_population, woe)
+                  d_population, d_ac_good, d_ac_bad, woe) %>%
+    as.tbl()
   if(performance){
     out <- c(out, performance.wroc(object))
   }
@@ -535,9 +543,9 @@ print.summary.wroc <- function(x, extended = FALSE, ...){
 
   if(x$performance){
     out <- sprintf(
-      'Gini Index: %.2f%% (trend: %s)\nAUC: %.3f\nKolmogorov-Smirnov Statistic: %.3f\nInformation Value: %.3f\n\n%s)',
-      100*x$gini, x$best_trend, x$auc, x$ks, x$iv,
-      out
+      '%s\n\nGini Index: %.2f%% (trend: %s)\nAUC: %.3f\nKolmogorov-Smirnov Statistic: %.3f\nInformation Value: %.3f)',
+      out,
+      100*x$gini, x$best_trend, x$auc, x$ks, x$iv
     )
   }
   cat(out)

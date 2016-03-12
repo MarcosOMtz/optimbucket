@@ -155,8 +155,12 @@ plot(wr3, type='woe')
 # Analysis of the optimal path
 plot(wr4 <- analyze(wr, 7), 'woe')
 
-# With a formula for multiple variables at once
-wrs <- wroc(y ~ x + z + w, d, ngroups = 50, level.bad = 1,
+# wroc's for multiple variables at once
+wrs <- wroc(y ~ x + z, d, ngroups = 50, level.bad = 1,
+            special.values = list(w = c(-998, -999)))
+
+# wroc for all variables
+wrs <- wroc(y ~ ., d, ngroups = 50, level.bad = 1,
             special.values = list(w = c(-998, -999)))
 
 # Manipulate wroc.list objects
