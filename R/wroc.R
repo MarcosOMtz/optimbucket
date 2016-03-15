@@ -3,7 +3,6 @@ require(dplyr)
 require(tidyr)
 require(ggplot2)
 
-wroc <- function(x, ...) UseMethod("wroc")
 performance <- function(x, ...) UseMethod("performance")
 optimize <- function(x, ...) UseMethod("optimize")
 analyze <- function(x, ...) UseMethod("analyze")
@@ -41,7 +40,33 @@ choose.trend_ <- function(x){
   trend
 }
 
-# wroc signatures
+#' Create Flexible ROC Curves
+#'
+#' \code{wroc} builds a ROC curve based on either a raw variable or a summarized
+#' dataset. \code{wroc} objects can be manipulated in a variety of ways,
+#' including manual and Optimal Gini bucketing.
+#'
+#' @param predictions A numeric vector or a matrix with one column with the
+#'   predictions of a score or the value of a variable whose ROC curve is to be
+#'   created.
+#' @param labels Either a factor (or character vector) with the true labels of
+#'   the response variable or a 2-column matrix containing counts for each class
+#'   for each distinct value in \code{predictions}.
+#' @param ngroups Precision to use for the ROC curve. A NULL value means "use as
+#'   many values as there are unique values in \code{predictions}".
+#' @param level.bad The level or value in \code{labels} corresponding to the
+#'   positive class.
+#' @param col.bad If \code{labels} is a matrix, the column containing the counts
+#'   for the positive class.
+#' @param special.values A vector containing values to be treated separately
+#'   (NAs should be replaced by one such value).
+#' @param formula Standard formula to specify the response (on the left side)
+#'   and the variables whose ROC curves are to be created.
+#' @param data A \code{data.frame} with the information.
+#' @return An object of class \code{wroc}, which can be then be used for several purposes.
+wroc <- function(x, ...) UseMethod("wroc")
+
+#' @describeIn wroc Default S3 method for class factor and character
 wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad=1,
                          special.values = NULL){
   if(!is.numeric(predictions)){
@@ -149,7 +174,8 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
   out
 }
 
-wroc.formula <- function(formula, data, ngroups = 50, level.bad=1,
+#' @describeIn wroc Formula-based S3 method
+wroc.formula <- function(formula, data, ngroups = NULL, level.bad=1,
                          special.values=NULL, verbose = (nrow(data) > 10000)){
   if(is.null(special.values)){
     special.values <- list()
