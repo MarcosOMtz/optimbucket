@@ -3,7 +3,7 @@ require(dplyr)
 require(tidyr)
 require(ggplot2)
 
-# wroc.list methods
+#' @export
 print.wroc.list <- function(x, ...){
   for(i in 1:length(x)){
     if(i > 1) cat(sprintf('\n\n'))
@@ -12,6 +12,7 @@ print.wroc.list <- function(x, ...){
   }
 }
 
+#' @export
 `[.wroc.list` <- function(x, i){
   out <- x
   class(out) <- 'list'
@@ -20,6 +21,7 @@ print.wroc.list <- function(x, ...){
   out
 }
 
+#' @export
 c.wroc.list <- function(...){
   ar <- list(...)
   vars <- unlist(lapply(ar, names))
@@ -32,9 +34,14 @@ c.wroc.list <- function(...){
   out
 }
 
+#' @describeIn optimize Runs the algorithm on a \code{wroc.list}.
+#' @inheritParams analyze.wroc
+#' @param trends A character vector containing the trend to choose for each
+#'   variable or 'auto' to let the algorithm find out on its own.
+#' @export
 optimize.wroc.list <- function(x, trends = 'auto', verbose = TRUE){
   if((length(trends) != length(x)) && (trends != 'auto')){
-    stop('trends must be either "auto" or a character vector with a trend for each vriable.')
+    stop('trends must be either "auto" or a character vector with a trend for each variable.')
   } else if((length(trends) == 1) && (trends == 'auto')){
     trends <- rep('auto', length(x))
   }
@@ -61,11 +68,8 @@ predict.wroc.list <- function(object,
     }
     variable <- names(object)[i]
     yhats[[variable]] <- predict(object[[i]],
-                                 newdata,
-                                 variable,
-                                 type,
-                                 keep.data = FALSE,
-                                 prefix)
+                                 newdata[[variable]],
+                                 type)
   }
   names(yhats) <- sprintf('%s_%s', prefix, names(object))
   yhats <- as.data.frame(yhats)

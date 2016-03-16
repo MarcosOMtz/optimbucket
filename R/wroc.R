@@ -3,11 +3,15 @@ require(dplyr)
 require(tidyr)
 require(ggplot2)
 
-performance <- function(x, ...) UseMethod("performance")
-optimize <- function(x, ...) UseMethod("optimize")
-analyze <- function(x, ...) UseMethod("analyze")
-
 # Local helper functions
+
+#' Reset Bucket Numbers of \code{wroc} Objects
+#'
+#' Resets the bucket numbers of an optimized or subsetted ROC curve in order to
+#' have consecutive bucket numbers.
+#'
+#' @param x An object of type \code{wroc}.
+#' @export
 reset.buckets <- function(x){
   x$info$bucket <- 0:(nrow(x$info)-1)
   x
@@ -63,10 +67,14 @@ choose.trend_ <- function(x){
 #' @param formula Standard formula to specify the response (on the left side)
 #'   and the variables whose ROC curves are to be created.
 #' @param data A \code{data.frame} with the information.
-#' @return An object of class \code{wroc}, which can be then be used for several purposes.
-wroc <- function(x, ...) UseMethod("wroc")
+#' @return An object of class \code{wroc} (default method) or a \code{wroc.list}
+#'   of such objects (formula method), which can be then be used for several
+#'   purposes.
+#' @export
+wroc <- function(x, ...) x #UseMethod("wroc")
 
-#' @describeIn wroc Default S3 method for class factor and character
+#' @describeIn wroc Method for raw, unsummarized data
+#' @export
 wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad=1,
                          special.values = NULL){
   if(!is.numeric(predictions)){
@@ -174,7 +182,9 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
   out
 }
 
-#' @describeIn wroc Formula-based S3 method
+#' @describeIn wroc Formula-based for simple processing of several variables at
+#'   once.
+#' @export
 wroc.formula <- function(formula, data, ngroups = NULL, level.bad=1,
                          special.values=NULL, verbose = (nrow(data) > 10000)){
   if(is.null(special.values)){
@@ -200,7 +210,7 @@ wroc.formula <- function(formula, data, ngroups = NULL, level.bad=1,
     } else {
       spvals <- special.values[[names(ds)[j]]]
     }
-    wroc(ds[[j]], y, ngroups = ngroups, level.bad = level.bad,
+    wroc.default(ds[[j]], y, ngroups = ngroups, level.bad = level.bad,
          special.values = spvals)
   })
   names(out) <- names(ds)
@@ -208,11 +218,25 @@ wroc.formula <- function(formula, data, ngroups = NULL, level.bad=1,
   out
 }
 
+#' @param x An object of class \code{wroc}
+#' @rdname wroc
+#' @export
 print.wroc <- function(x, ...){
   print(summary(x, performance = F), extended = T)
 }
 
-# wroc methods
+#' @export
+analyze <- function(x, ...) UseMethod("analyze")
+
+#' Optimal Bucketing With a Fixed Number of Buckets
+#'
+#' Optimizes the bucketing to have the maximum Gini index possible for the given
+#' trend and number of buckets.
+#'
+#' @param x An object of class \code{wroc}.
+#' @param nbuckets The number of buckets the final bucketing should have.
+#' @param trend The trend according to the cummulative ROC curve.
+#' @export
 analyze.wroc <- function(x,
                          nbuckets = 5,
                          trend = c('auto','upper','lower')){
@@ -275,6 +299,8 @@ analyze.wroc <- function(x,
   out
 }
 
+#' @rdname wroc
+#' @export
 c.wroc <- function(...){
   ar <- list(...)
   if(is.null(names(ar))){
@@ -284,6 +310,18 @@ c.wroc <- function(...){
   ar
 }
 
+#' Optimal Gini Bucketing
+#'
+#' Optimizes the bucketing to have the maximum Gini index possible for the given
+#' trend.
+#'
+#' @seealso analyze.wroc
+#' @export
+optimize <- function(x, ...) UseMethod("optimize")
+
+#' @describeIn optimize Optimize a single ROC curve.
+#' @inheritParams analyze.wroc
+#' @export
 optimize.wroc <- function(x, trend = c('auto','upper','lower')){
   if('optimal.wroc' %in% class(x)){
     warning('This is an already optimal ROC curve. Returning the input ROC curve. ')
@@ -337,6 +375,17 @@ optimize.wroc <- function(x, trend = c('auto','upper','lower')){
   out
 }
 
+#' Performance Metrics for ROC Curves
+#'
+#' Calculates several performance metrics for ROC curves, including AUC and Gini
+#' index for both trends.
+#'
+#' @param x An object of type \code{wroc}.
+#' @export
+performance <- function(x, ...) UseMethod("performance")
+
+#' @describeIn performance Performance measures of a \code{wroc} object.
+#' @export
 performance.wroc <- function(x){
   ds <- x$info
 
@@ -368,11 +417,23 @@ performance.wroc <- function(x){
   out
 }
 
+#' @describeIn performance Quick evaluation without need of a \code{wroc}
+#'   object.
+#' @inheritParams wroc
+#' @export
 performance.numeric <- function(predictions, labels, ...){
   suppressWarnings(x <- wroc.default(predictions, labels, ...))
   performance.wroc(x)
 }
 
+#' @inheritParams c.wroc
+#' @param type One of 'accum' (ROC using fnr ~ tnr), 'roc' (standard ROC tpr ~
+#'   fpr), 'trend' (probability of being in the positive class) and 'woe'
+#'   (Weight of Evidence: log-odds of being in the *negative* class).
+#' @param include.special Should special values be included in the plot? Only
+#'   applies to 'trend' and 'woe' options
+#' @rdname wroc
+#' @export
 plot.wroc <- function(x,
                       type = c('accum','roc','trend','woe'),
                       include.special = TRUE){
@@ -455,13 +516,26 @@ plot.wroc <- function(x,
   p
 }
 
+#' Transform Variables with a ROC Curve
+#'
+#' Transforms raw variables into bucketed ones. The pasted value can be any
+#' column in the \code{object$info} \code{data.frame}, but it usually is the
+#' WoE, the bucket number or the probability of being in the positive class.
+#'
+#' @param object An object of class \code{wroc}.
+#' @param newdata A numeric vector containing values of the raw variable to be
+#'   transformed.
+#' @param type A string containing the name of the column in \code{object$info},
+#'   to be used as transformation, usually 'woe', 'bucket' or 'p_bad'.
+#' @export
 predict.wroc <- function(object,
                          newdata,
-                         variable,
-                         type = c('woe','bucket','p_bad'),
-                         keep.data = FALSE,
-                         prefix = type){
+                         type = c('woe','bucket','p_bad')){
   type <- type[1]
+  if(!is.numeric(newdata)){
+    warning('newdata must be numeric. Attempting to coerce to numeric.')
+    newdata <- as.numeric(newdata)
+  }
   if(nrow(object$special) > 0){
     spec <- cbind(object$special, special=TRUE)
   } else {
@@ -472,23 +546,24 @@ predict.wroc <- function(object,
     cbind(object$info[-1,], special = FALSE)
   )%>%
     .[c(type, 'lower_limit', 'upper_limit', 'special')]
-  ix <- sapply(newdata[[variable]], function(i){
+  ix <- sapply(newdata, function(i){
     ((vals$special & (vals$lower_limit == i) & (i == vals$upper_limit)) |
       (!vals$special & (vals$lower_limit < i) & (i <= vals$upper_limit))) %>%
       which %>%
       min
   })
   yhat <- vals[[type]][ix]
-
-  if(keep.data){
-    woe_name <- sprintf('%s_%s', prefix, variable)
-    newdata[woe_name] <- yhat
-    return(newdata)
-  } else{
-    return(yhat)
-  }
+  yhat
 }
 
+#' Paste Adjacent Buckets of a ROC Curve
+#'
+#' Pastes the given bucket names to the immediately following one. This allows
+#' for manual tampering of the ROC curves.
+#'
+#' @param x An object of class \code{wroc}.
+#' @param buckets Bucket numbers to be pasted to the right.
+#' @export
 subset.wroc <- function(x, buckets = NULL, ...){
   if(is.null(buckets) || length(buckets) == 0) return(x)
   if(any(buckets < 0)){
@@ -528,7 +603,14 @@ subset.wroc <- function(x, buckets = NULL, ...){
   out
 }
 
-# summary.wroc and its methods
+#' Important Information of ROC Curves
+#'
+#' Returns and prints basic important information about a \code{wroc} object.
+#'
+#' @param object An object of class \code{wroc}.
+#' @param performance Calculate performance measures as given by
+#'   \code{performance} (AUC, Gini, KS, IV)?
+#' @export
 summary.wroc <- function(object, performance = TRUE, ...){
   out <- list()
   if(object$nspecial > 0){
@@ -555,6 +637,13 @@ summary.wroc <- function(object, performance = TRUE, ...){
   out
 }
 
+#' Important Information of ROC Curves
+#'
+#' Returns and prints basic important information about a \code{wroc} object.
+#'
+#' @param x An object of class \code{wroc}.
+#' @param extended Should details be printed?
+#' @export
 print.summary.wroc <- function(x, extended = FALSE, ...){
   regular <- filter(x$info, type == 'normal')
   special <- filter(x$info, type == 'special')
