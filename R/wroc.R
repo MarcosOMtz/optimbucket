@@ -561,13 +561,17 @@ performance.numeric <- function(predictions, labels, ...){
 #' column in the \code{object$info} \code{data.frame}, but it usually is the
 #' WoE, the bucket number or the probability of being in the positive class.
 #'
-#' @param object An object of class \code{wroc}.
+#' @param object An object of class \code{wroc} or \code{wroc.list}.
 #' @param newdata A numeric vector containing values of the raw variable to be
-#'   transformed.
+#'   transformed. If \code{object} is a \code{wroc.list}, then \code{newdata}
+#'   must be a \code{data.frame} with the variables in the list.
 #' @param type A string containing the name of the column in \code{object$info},
 #'   to be used as transformation, usually 'woe', 'bucket' or 'p_bad'.
 #' @return A vector of the same length as \code{newdata} containing the
-#'   transformed variable.
+#'   transformed variable. If \code{object} is a \code{wroc.list}, then the
+#'   output is a \code{data.frame} of the transformed variables. In that case,
+#'   \code{keep.data} can be used to append the transformed variables to the
+#'   original dataset instead of just returning them.
 #' @export
 predict.wroc <- function(object,
                          newdata,
