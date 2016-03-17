@@ -3,6 +3,9 @@ require(dplyr)
 require(tidyr)
 require(ggplot2)
 
+###############################################################
+
+#' @rdname wroc
 #' @export
 print.wroc.list <- function(x, ...){
   for(i in 1:length(x)){
@@ -12,15 +15,7 @@ print.wroc.list <- function(x, ...){
   }
 }
 
-#' @export
-`[.wroc.list` <- function(x, i){
-  out <- x
-  class(out) <- 'list'
-  out <- out[i]
-  class(out) <- c('wroc.list','list')
-  out
-}
-
+#' @rdname wroc
 #' @export
 c.wroc.list <- function(...){
   ar <- list(...)
@@ -34,8 +29,10 @@ c.wroc.list <- function(...){
   out
 }
 
+###############################################################
+
 #' @describeIn optimize Runs the algorithm on a \code{wroc.list}.
-#' @inheritParams analyze.wroc
+#' @inheritParams analyze
 #' @param trends A character vector containing the trend to choose for each
 #'   variable or 'auto' to let the algorithm find out on its own.
 #' @export
@@ -54,11 +51,20 @@ optimize.wroc.list <- function(x, trends = 'auto', verbose = TRUE){
   x
 }
 
+###############################################################
+
+#' @describeIn predict.wroc Transforms several variables in one step
+#' @inheritParams predict.wroc
+#' @param keep.data Should predictions be appended to original data or should
+#'   the predictions exclusively be returned?
+#' @param prefix The prefix for the new variables. Defaults to \code{type}
+#' @param verbose Should progress info be displayed?
+#' @export
 predict.wroc.list <- function(object,
                               newdata,
                               type = c('woe','bucket','p_bad'),
                               keep.data = FALSE,
-                              prefix = type,
+                              prefix = type[1],
                               verbose = (nrow(newdata)*length(object) > 10000)){
   yhats <- list()
   for(i in 1:length(object)){
@@ -80,6 +86,18 @@ predict.wroc.list <- function(object,
   }
 }
 
+###############################################################
+
+#' Choose ROC Curves Manually from a List
+#'
+#' Provides a 'keep' and 'drop'-style for selecting ROC curves in a large list.
+#'
+#' @param x An object of type \code{wroc.list}
+#' @param keep A character vector of the names of the ROC curves to be kept
+#'   (overrides \code{drop})
+#' @param drop A character vector of the names of the ROC curves to be discarded
+#'   (is overriden by \code{keep})
+#' @export
 subset.wroc.list <- function(x, keep=NULL, drop=NULL){
   if((!(is.character(keep)) && !is.null(keep))
      ||
@@ -96,6 +114,20 @@ subset.wroc.list <- function(x, keep=NULL, drop=NULL){
   x[ix]
 }
 
+#' @rdname subset.wroc.list
+#' @export
+`[.wroc.list` <- function(x, i){
+  out <- x
+  class(out) <- 'list'
+  out <- out[i]
+  class(out) <- c('wroc.list','list')
+  out
+}
+
+###############################################################
+
+#' @describeIn performance Method for a list of ROC curves
+#' @export
 performance.wroc.list <- function(x, out.type = c('list', 'data.frame')){
   if(out.type[1] == 'data.frame'){
     out <- rbind_all(lapply(1:length(x), function(i){
@@ -111,6 +143,10 @@ performance.wroc.list <- function(x, out.type = c('list', 'data.frame')){
  return(out)
 }
 
+###############################################################
+
+#' @rdname summary.wroc
+#' @export
 summary.wroc.list <- function(x, performance = T, ...){
   out <- lapply(x, function(y){
     summary(y, performance)
@@ -119,6 +155,8 @@ summary.wroc.list <- function(x, performance = T, ...){
   out
 }
 
+#' @rdname summary.wroc
+#' @export
 print.summary.wroc.list <- function(x, ...){
   names_cond <- (mean(nchar(names(x))) > 15 | length(names(x)) > 10)
   if(names_cond){

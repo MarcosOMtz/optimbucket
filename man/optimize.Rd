@@ -16,6 +16,15 @@ optimize(x, ...)
 \item{x}{An object of class \code{wroc}.}
 
 \item{trend}{The trend according to the cummulative ROC curve.}
+
+\item{trends}{A character vector containing the trend to choose for each
+variable or 'auto' to let the algorithm find out on its own.}
+}
+\value{
+An object of class \code{wroc}. The class \code{optimize.wroc} has
+  been added to show the fact that the original curve has been optimized. If
+  the input is a \code{wroc.list} then the output is again a \code{wroc.list}
+  of optimized ROC curves.
 }
 \description{
 Optimizes the bucketing to have the maximum Gini index possible for the given
@@ -28,6 +37,6 @@ trend.
 \item \code{wroc.list}: Runs the algorithm on a \code{wroc.list}.
 }}
 \seealso{
-analyze.wroc
+\code{analyze.wroc}
 }
 

@@ -11,6 +11,12 @@
 
 \item{buckets}{Bucket numbers to be pasted to the right.}
 }
+\value{
+An object of class \code{wroc} with the given buckets pasted to the
+  right. The class \code{subset.wroc} has been added to show that the ROC
+  curve isn't the original one. The original bucket numbers are used for
+  clarity (you can use reset.buckets afterwards to change this)
+}
 \description{
 Pastes the given bucket names to the immediately following one. This allows
 for manual tampering of the ROC curves.
