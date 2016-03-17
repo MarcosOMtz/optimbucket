@@ -1,4 +1,4 @@
-#' Create, Optimize, Bucket and Manipulate ROC Curves in a Flash
+#' Optimal Bucketing Based on ROC Curves
 #'
 #' \code{Optimbucket} allows you to create ROC curves very easily. It has
 #' dedicated functions for optimizing and manipulating them, all while handling

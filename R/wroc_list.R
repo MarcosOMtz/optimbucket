@@ -48,7 +48,7 @@ plot.wroc.list <- function(x,
   if(save.pdf){
     pdf(file = file, ...)
   } else{
-    cat('~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~')
+    cat(sprintf('~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~\nPlotting %s of a list of %d variables...', type[1], length(x)))
   }
   out <- list()
   for(i in 1:length(x)){
@@ -81,9 +81,11 @@ optimize.wroc.list <- function(x, trends = 'auto', verbose = TRUE){
   } else if((length(trends) == 1) && (trends == 'auto')){
     trends <- rep('auto', length(x))
   }
+  cat(sprintf('~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~\nOptimizing %d variables...\n',
+              length(x)))
   for(i in 1:length(x)){
     if(verbose){
-      cat(sprintf('Variable # %d (%.0f %%):\t%s\n', i, 100*i/length(x), names(x)[i]))
+      cat(sprintf('(%d/%d) Optimizing variable %s\n', i, length(x), names(x)[i]))
     }
     x[[i]] <- optimize.wroc(x[[i]], trends[i])
   }

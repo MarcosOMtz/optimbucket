@@ -278,7 +278,8 @@ plot.wroc <- function(x,
     ds <- x$info[-1,]
     if(include.special) ds <- rbind(x$special, ds)
     ds <- ds %>%
-      mutate(barcol = ifelse(bucket < 0, 'red', 'darkgrey'))
+      mutate(barcol = ifelse(bucket < 0, 'red', 'darkgrey'),
+             linecol = ifelse(bucket < 0, 'red', 'black'))
     brks <- 1:nrow(ds)
     labls <- sprintf('B%d: (%.2f, %.2f]',
                      ds$bucket,
@@ -291,10 +292,11 @@ plot.wroc <- function(x,
              norm_population = population*max(p_bad)/max(population)) %>%
       ggplot(aes(i, p_bad)) +
       geom_bar(aes(y=norm_population, fill=barcol), stat='identity') +
-      geom_point() +
-      geom_line() +
+      geom_point(aes(color=linecol)) +
+      geom_line(aes(color=linecol)) +
       geom_text(aes(y = 0, label=sprintf('%.2f %%',100*d_population)),
-                size = 2, vjust=1)+#angle=90, hjust = -0.5) +
+                size = 2, vjust=1) +
+      scale_color_identity() +
       scale_fill_identity() +
       scale_x_continuous(breaks=brks,labels=labls) +
       scale_y_continuous(labels = scales::percent) +
@@ -306,7 +308,8 @@ plot.wroc <- function(x,
     ds <- x$info[-1,]
     if(include.special) ds <- rbind(x$special, ds)
     ds <- ds %>%
-      mutate(barcol = ifelse(bucket < 0, 'red', 'darkgrey'))
+      mutate(barcol = ifelse(bucket < 0, 'red', 'darkgrey'),
+             linecol = ifelse(bucket < 0, 'red', 'black'))
     brks <- 1:nrow(ds)
     labls <- sprintf('B%d: (%.2f, %.2f]',
                      ds$bucket,
@@ -319,10 +322,11 @@ plot.wroc <- function(x,
              norm_population = population*max(woe)/max(population)) %>%
       ggplot(aes(i, woe)) +
       geom_bar(aes(y=norm_population, fill=barcol), stat='identity') +
-      geom_point() +
-      geom_line() +
+      geom_point(aes(color=linecol)) +
+      geom_line(aes(color=linecol)) +
       geom_text(aes(y = 0, label=sprintf('%.2f %%',100*d_population)),
-                size = 2, vjust=1)+#angle=90, hjust = -0.5) +
+                size = 2, vjust=1) +
+      scale_color_identity() +
       scale_fill_identity() +
       scale_x_continuous(breaks=brks,labels=labls) +
       theme(axis.text.x = element_text(angle=90)) +
