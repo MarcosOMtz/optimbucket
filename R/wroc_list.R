@@ -29,6 +29,45 @@ c.wroc.list <- function(...){
   out
 }
 
+# #' @describeIn plot.wroc Plots for all variables in a list
+
+#' aaaa
+#'
+#' sadfsfd
+#'
+#' @param save.pdf Should the plots be saved to a PDF file or just shown?
+#' @param file Name (with path) of the PDF file to output the plots to
+#' @param ... Additional options to pass on to \code{pdf()}
+#' @export
+plot.wroc.list <- function(x,
+                           type = c("accum", "roc", "trend", "woe"),
+                           include.special = TRUE,
+                           save.pdf = TRUE,
+                           file = 'Wroc Plots.pdf',
+                           ...){
+  if(save.pdf){
+    pdf(file = file, ...)
+  } else{
+    cat('~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~')
+  }
+  out <- list()
+  for(i in 1:length(x)){
+    print(
+      out[[names(x)[i]]] <- plot(x[[i]],
+                                 type = type,
+                                 include.special = include.special) +
+        labs(title=names(x)[i])
+    )
+    if(!save.pdf){
+      readline(sprintf('(%d/%d) %s plot of variable %s',
+                       i, length(x), type[1], names(x)[i]))
+    }
+  }
+  if(save.pdf){
+    dev.off()
+  }
+  out
+}
 ###############################################################
 
 #' @describeIn optimize Runs the algorithm on a \code{wroc.list}.
