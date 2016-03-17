@@ -162,6 +162,7 @@ wrs <- wroc(y ~ x + z, d, ngroups = 50, level.bad = 1,
 # wroc for all variables
 wrs <- wroc(y ~ ., d, ngroups = 50, level.bad = 1,
             special.values = list(w = c(-998, -999)))
+plot(wrs, save.pdf = F)
 
 # Manipulate wroc.list objects
 subset(wrs, keep=NULL, drop='z')

@@ -577,31 +577,34 @@ performance.numeric <- function(predictions, labels, ...){
 #'   \code{keep.data} can be used to append the transformed variables to the
 #'   original dataset instead of just returning them.
 #' @export
-predict.wroc <- function(object,
-                         newdata,
-                         type = c('woe','bucket','p_bad')){
+predict.wroc  <- function(object,
+                          newdata,
+                          type = c('woe','bucket','p_bad')){
+
   type <- type[1]
   if(!is.numeric(newdata)){
     warning('newdata must be numeric. Attempting to coerce to numeric.')
     newdata <- as.numeric(newdata)
   }
-  if(nrow(object$special) > 0){
-    spec <- cbind(object$special, special=TRUE)
-  } else {
-    spec <- NULL
-  }
-  vals <- rbind(
-    spec,
-    cbind(object$info[-1,], special = FALSE)
-  )%>%
-    .[c(type, 'lower_limit', 'upper_limit', 'special')]
-  ix <- sapply(newdata, function(i){
-    ((vals$special & (vals$lower_limit == i) & (i == vals$upper_limit)) |
-      (!vals$special & (vals$lower_limit < i) & (i <= vals$upper_limit))) %>%
-      which %>%
-      min
-  })
-  yhat <- vals[[type]][ix]
+
+  out <- rep(NA, length(newdata))
+  special_ix <- (newdata %in% object$special$lower_limit)
+
+  out[!special_ix] <- cut(x = newdata[!special_ix],
+                          breaks = c(-Inf, object$info$upper_limit[-1]),
+                          include.lowest = FALSE,
+                          labels = object$info$bucket[-1],
+                          right = TRUE) %>%
+    as.character() %>%
+    as.numeric()
+  out[special_ix] <- newdata[special_ix]
+
+  vals <- rbind(object$info[-1,c('bucket',type)],
+                object$special[,c('upper_limit',type)] %>%
+                  rename(bucket=upper_limit))
+  yhat <- data.frame(bucket=out) %>%
+    left_join(vals, by='bucket') %>%
+    .[[type]]
   yhat
 }
 
