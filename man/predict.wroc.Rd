@@ -5,17 +5,18 @@
 \alias{predict.wroc.list}
 \title{Transform Variables with a ROC Curve}
 \usage{
-predict.wroc(object, newdata, type = c("woe", "bucket", "p_bad"))
+\method{predict}{wroc}(object, newdata, type = c("woe", "bucket", "p_bad"))
 
-predict.wroc.list(object, newdata, type = c("woe", "bucket", "p_bad"),
-  keep.data = FALSE, prefix = type[1], verbose = (nrow(newdata) *
-  length(object) > 10000))
+\method{predict}{wroc.list}(object, newdata, type = c("woe", "bucket",
+  "p_bad"), keep.data = FALSE, prefix = type[1], verbose = (nrow(newdata)
+  * length(object) > 10000))
 }
 \arguments{
-\item{object}{An object of class \code{wroc}.}
+\item{object}{An object of class \code{wroc} or \code{wroc.list}.}
 
 \item{newdata}{A numeric vector containing values of the raw variable to be
-transformed.}
+transformed. If \code{object} is a \code{wroc.list}, then \code{newdata}
+must be a \code{data.frame} with the variables in the list.}
 
 \item{type}{A string containing the name of the column in \code{object$info},
 to be used as transformation, usually 'woe', 'bucket' or 'p_bad'.}
@@ -29,15 +30,14 @@ the predictions exclusively be returned?}
 }
 \value{
 A vector of the same length as \code{newdata} containing the
-  transformed variable.
+  transformed variable. If \code{object} is a \code{wroc.list}, then the
+  output is a \code{data.frame} of the transformed variables. In that case,
+  \code{keep.data} can be used to append the transformed variables to the
+  original dataset instead of just returning them.
 }
 \description{
 Transforms raw variables into bucketed ones. The pasted value can be any
 column in the \code{object$info} \code{data.frame}, but it usually is the
 WoE, the bucket number or the probability of being in the positive class.
 }
-\section{Functions}{
-\itemize{
-\item \code{predict.wroc.list}: Transforms several variables in one step
-}}
 

@@ -92,7 +92,7 @@ optimize.wroc.list <- function(x, trends = 'auto', verbose = TRUE){
 
 ###############################################################
 
-#' @describeIn predict.wroc Transforms several variables in one step
+#' @rdname predict.wroc
 #' @inheritParams predict.wroc
 #' @param keep.data Should predictions be appended to original data or should
 #'   the predictions exclusively be returned?
