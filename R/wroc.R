@@ -201,9 +201,12 @@ wroc.formula <- function(formula, data, ngroups = NULL, level.bad=1,
   y <- ds[[1]]
   ds <- ds[-1]
 
+  cat(sprintf('~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~\nGenerating %d ROC curves\nPrecision parameter (ngroups): %d\n\n',
+              ncol(ds), ngroups))
   out <- lapply(1:ncol(ds), function(j){
     if(verbose){
-      cat(sprintf('Variable # %d (%.0f %%):\t%s\n', j, 100*j/ncol(ds), names(ds)[j]))
+      cat(sprintf('(%d/%d) Generating ROC curve for variable\t%s\t@ %s\n',
+                  j, ncol(ds), names(ds)[j], Sys.time()))
     }
     if(reuse_special){
       spvals <- special.values
@@ -213,6 +216,8 @@ wroc.formula <- function(formula, data, ngroups = NULL, level.bad=1,
     wroc.default(ds[[j]], y, ngroups = ngroups, level.bad = level.bad,
          special.values = spvals)
   })
+  cat(sprintf('\nFinished generating ROC curves @ %s\n',
+              Sys.time()))
   names(out) <- names(ds)
   class(out) <- c('wroc.list','list')
   out
@@ -239,13 +244,16 @@ c.wroc <- function(...){
 #'
 #' Uses \code{ggplot2} to plot several interesting aspects about a ROC curve.
 #'
-#' @param x An object of class \code{wroc}.
+#' @param x An object of class \code{wroc} or \code{wroc.list}.
 #' @param type One of 'accum' (ROC using fnr ~ tnr), 'roc' (standard ROC tpr ~
 #'   fpr), 'trend' (probability of being in the positive class) and 'woe'
 #'   (Weight of Evidence: log-odds of being in the *negative* class).
 #' @param include.special Should special values be included in the plot? Only
 #'   applies to 'trend' and 'woe' options
-#' @return An object of class ggplot which can be then be modified if needed.
+#' @return An object of class ggplot which can be then be modified if needed. If
+#'   \code{x} is a \code{wroc.list}, then a list of \code{ggplot} objects is
+#'   returned. Depending on the value of \code{save.pdf}, a PDF with the plots
+#'   is saved to \code{file} or the plots are shown one by one.
 #' @export
 plot.wroc <- function(x,
                       type = c('accum','roc','trend','woe'),

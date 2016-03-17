@@ -31,10 +31,7 @@ c.wroc.list <- function(...){
 
 # #' @describeIn plot.wroc Plots for all variables in a list
 
-#' aaaa
-#'
-#' sadfsfd
-#'
+#' @rdname plot.wroc
 #' @param save.pdf Should the plots be saved to a PDF file or just shown?
 #' @param file Name (with path) of the PDF file to output the plots to
 #' @param ... Additional options to pass on to \code{pdf()}
@@ -81,14 +78,17 @@ optimize.wroc.list <- function(x, trends = 'auto', verbose = TRUE){
   } else if((length(trends) == 1) && (trends == 'auto')){
     trends <- rep('auto', length(x))
   }
-  cat(sprintf('~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~\nOptimizing %d variables...\n',
+  cat(sprintf('~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~\nOptimizing %d variables...\n\n',
               length(x)))
   for(i in 1:length(x)){
     if(verbose){
-      cat(sprintf('(%d/%d) Optimizing variable %s\n', i, length(x), names(x)[i]))
+      cat(sprintf('(%d/%d) Optimizing variable %s\t@ %s\n',
+                  i, length(x), names(x)[i], Sys.time()))
     }
     x[[i]] <- optimize.wroc(x[[i]], trends[i])
   }
+  cat(sprintf('\nFinished optimizing ROC curves @ %s\n',
+              Sys.time()))
   x
 }
 
@@ -107,11 +107,13 @@ predict.wroc.list <- function(object,
                               keep.data = FALSE,
                               prefix = type[1],
                               verbose = (nrow(newdata)*length(object) > 10000)){
+  cat(sprintf('~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~\nTransforming %d variables to %s...\n\n',
+              length(object), type[1]))
   yhats <- list()
   for(i in 1:length(object)){
     if(verbose){
-      cat(sprintf('Variable # %d (%.0f %%):\t%s\n',
-                  i, 100*i/length(object), names(object)[i]))
+      cat(sprintf('(%d/%d) Transforming variable %s\t@ %s\n',
+                  i, length(object), names(object)[i], Sys.time()))
     }
     variable <- names(object)[i]
     yhats[[variable]] <- predict(object[[i]],
@@ -120,6 +122,8 @@ predict.wroc.list <- function(object,
   }
   names(yhats) <- sprintf('%s_%s', prefix, names(object))
   yhats <- as.data.frame(yhats)
+  cat(sprintf('\nFinished generating ROC curves @ %s\n',
+              Sys.time()))
   if(keep.data){
     return(cbind(newdata, yhats))
   } else{
