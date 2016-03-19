@@ -114,9 +114,9 @@ d <- rbind(goods, bads) %>%
   mutate(y = factor(y),
          z = 2*x + 1 + rnorm(ng+nb, 0, 5),
          w = round(x - z  - 1 + rnorm(ng+nb, 0, 1)),
-         w = ifelse(runif(ng+nb) < 0.01,
+         w = ifelse(runif(ng+nb) < 0.2,
                     -999,
-                    ifelse(runif(ng+nb) < 0.01,
+                    ifelse(runif(ng+nb) < 0.1,
                            -998,
                            w)))
 

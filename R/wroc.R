@@ -137,24 +137,33 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
     stop("The labels must be either a vector of classes (numeric or factor) or a two-column matrix with the counts for each class.")
   }
 
+  ix <- (out$info$bucket %in% special_buckets)
+
+  totals <- list()
+  totals$population <- sum(out$info$population)
+  totals$spec_population <- sum(out$info$population[ix])
+  totals$bad <- sum(out$info$n_bad)
+  totals$spec_bad <- sum(out$info$n_bad[ix])
+  totals$good <- totals$population - totals$bad
+  totals$spec_good <- totals$spec_population - totals$spec_bad
+
   out$info <- out$info %>%
     mutate(n_good = population - n_bad,
            p_bad = n_bad / population,
            p_good = 1 - p_bad,
-           ac_population = cumsum(population),
-           ac_bad = cumsum(n_bad),
-           ac_good = cumsum(n_good),
-           tot_population = sum(population),
-           tot_bad = sum(n_bad),
-           tot_good = sum(n_good),
-           d_population = population/tot_population,
-           d_bad = n_bad/tot_bad,
-           d_good = n_good/tot_good,
-           d_ac_population = ac_population/tot_population,
-           d_ac_bad = ac_bad/tot_bad,
-           d_ac_good = ac_good/tot_good,
-           woe = ifelse(p_bad == 0 | p_good == 0, NA, log(p_good/p_bad))) %>%
-    rbind(0, .)
+           ac_population = c(rep(NA, sum(ix)), cumsum(population[!ix])),
+           ac_bad = c(rep(NA, sum(ix)), cumsum(n_bad[!ix])),
+           ac_good = c(rep(NA, sum(ix)), cumsum(n_good[!ix])),
+           d_population = population/totals$population,
+           d_bad = n_bad/totals$bad,
+           d_good = n_good/totals$good,
+           d_ac_population = ifelse(ix, NA,
+                                    ac_population/(totals$population - totals$spec_population)),
+           d_ac_bad = ifelse(ix, NA,
+                             ac_bad/(totals$bad - totals$spec_bad)),
+           d_ac_good = ifelse(ix, NA,
+                              ac_good/(totals$good - totals$spec_good)),
+           woe = ifelse(p_bad == 0 | p_good == 0, NA, log(p_good/p_bad)))
 
   if(any(is.na(out$info$woe))){
     warning('Some buckets have observations of a single class. Replacing WoE with twice the maximum / minimum WoE among other buckets.')
@@ -166,10 +175,9 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
                           woe))
   }
 
-
-  ix <- (out$info$bucket %in% special_buckets)
   out$special <- out$info[ix,]
-  out$info <- out$info[!ix,]
+  out$info <- out$info[!ix,] %>%
+    rbind(0, .)
   out$info$upper_limit[1] <- -Inf
   out$info$upper_limit[nrow(out$info)] <- Inf
   out$info$lower_limit <- lag(out$info$upper_limit)
@@ -178,6 +186,7 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
 
   out$ngroups <- nrow(out$info) - 1
   out$nspecial <- nrow(out$special)
+  out$totals <- totals
 
   out
 }
@@ -636,6 +645,7 @@ subset.wroc <- function(x, buckets = NULL, ...){
     stop('Cannot paste special valued buckets. Join the levels by hand before calling wroc.')
   } else {
     ds <- x$info[-1,]
+    sp <- x$special
   }
 
   if(0 %in% buckets){
@@ -653,16 +663,23 @@ subset.wroc <- function(x, buckets = NULL, ...){
     ds$bucket[ii] <- ds$bucket[ii+1]
   }
 
-  out <- wroc(predictions=ds$bucket,
-              labels=cbind(ds$n_bad, ds$n_good),
-              ngroups = nrow(ds))
+  suppressWarnings(
+    out <- wroc(predictions=c(sp$bucket, ds$bucket),
+                labels=rbind(
+                  cbind(sp$n_bad, sp$n_good),
+                  cbind(ds$n_bad, ds$n_good)
+                ),
+                ngroups = NULL,
+                special.values = x$special$bucket)
+  )
+
 
   out$special <- x$special
   out$nspecial <- x$nspecial
   out$info$bucket <- c(0, ds$bucket[-ix])
   out$info$lower_limit <- c(-Inf, ds$lower_limit[-(ix+1)])
   out$info$upper_limit <- c(-Inf, ds$upper_limit[-(ix)])
-  out$ngroups <- nrow(out$info) - 1
+  ### out$ngroups <- nrow(out$info) - 1
   out$call.subset <- match.call()
   out$pasted.buckets <- buckets
   class(out) <- c('subset.wroc', class(out))
@@ -706,6 +723,7 @@ summary.wroc <- function(object, performance = TRUE, ...){
     out <- c(out, performance.wroc(object))
   }
   out$performance <- performance
+  out$totals <- object$totals
   class(out) <- c('summary.wroc')
   out
 }
@@ -716,13 +734,15 @@ summary.wroc <- function(object, performance = TRUE, ...){
 print.summary.wroc <- function(object, extended = FALSE, ...){
   regular <- filter(object$info, type == 'normal')
   special <- filter(object$info, type == 'special')
+  tot <- object$totals
   out <- sprintf(
     'Regular Buckets: %d\nSpecial Buckets: %d\nTotal Population: %d\nSpecial Population: %d (%.2f%%)\nSmallest bucket Pop.: %d (%.2f%%)',
     nrow(regular), nrow(special),
-    sum(regular$population),
-    sum(special$population),
-    100*sum(special$population)/sum(regular$population),
-    min(regular$population), 100*min(regular$d_population)
+    tot$population,
+    tot$spec_population,
+    100*tot$spec_population/tot$population,
+    min(regular$population),
+    100*min(regular$d_population)
   )
 
   if(object$performance){
