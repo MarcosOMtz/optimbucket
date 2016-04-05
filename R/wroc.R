@@ -278,7 +278,7 @@ plot.wroc <- function(x,
       geom_point() +
       geom_point(size=1.5, shape=1, color='black') +
       scale_color_gradientn(colours = c('blue','green','yellow','red')) +
-      labs(x='d_ac_good (tnr)',y='d_ac_bad (fnr)') +
+      labs(x='Cumulative % Goods (tnr)',y='Cumulative % Bads (fnr)') +
       coord_equal()
   } else if(type[1] == 'roc'){
     p <- x$info %>%
@@ -295,8 +295,8 @@ plot.wroc <- function(x,
     ds <- x$info[-1,]
     if(include.special) ds <- rbind(x$special, ds)
     ds <- ds %>%
-      mutate(barcol = ifelse(bucket < 0, 'red', 'darkgrey'),
-             linecol = ifelse(bucket < 0, 'red', 'black'))
+      mutate(barcol = ifelse(bucket < 0, 'salmon', 'darkgrey'),
+             linecol = ifelse(bucket < 0, 'salmon', 'black'))
     brks <- 1:nrow(ds)
     labls <- sprintf('B%d: (%.2f, %.2f]',
                      ds$bucket,
@@ -320,14 +320,14 @@ plot.wroc <- function(x,
       scale_y_continuous(labels = scales::percent) +
       theme(axis.text.x = element_text(angle=90)) +
       labs(x = 'Bucket',
-           y = 'Default rate')
+           y = 'Default Rate')
 
   } else if(type[1] == 'woe'){
     ds <- x$info[-1,]
     if(include.special) ds <- rbind(x$special, ds)
     ds <- ds %>%
-      mutate(barcol = ifelse(bucket < 0, 'red', 'darkgrey'),
-             linecol = ifelse(bucket < 0, 'red', 'black'))
+      mutate(barcol = ifelse(bucket < 0, 'salmon', 'darkgrey'),
+             linecol = ifelse(bucket < 0, 'salmon', 'black'))
     brks <- 1:nrow(ds)
     labls <- sprintf('B%d: (%.2f, %.2f]',
                      ds$bucket,
