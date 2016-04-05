@@ -310,6 +310,7 @@ plot.wroc <- function(x,
       ggplot(aes(i, p_bad)) +
       geom_bar(aes(y=norm_population, fill=barcol), stat='identity') +
       geom_point(aes(color=linecol)) +
+      geom_point(color='black', shape=1) +
       geom_line(aes(color=linecol)) +
       geom_text(aes(y = 0, label=sprintf('%.2f %%',100*d_population)),
                 size = 2, vjust=1) +
@@ -340,6 +341,7 @@ plot.wroc <- function(x,
       ggplot(aes(i, woe)) +
       geom_bar(aes(y=norm_population, fill=barcol), stat='identity') +
       geom_point(aes(color=linecol)) +
+      geom_point(color='black', shape=1) +
       geom_line(aes(color=linecol)) +
       geom_text(aes(y = 0, label=sprintf('%.2f %%',100*d_population)),
                 size = 2, vjust=1) +
