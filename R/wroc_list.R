@@ -193,9 +193,31 @@ performance.wroc.list <- function(x, out.type = c('list', 'data.frame')){
 #' @rdname summary.wroc
 #' @export
 summary.wroc.list <- function(x, performance = T, ...){
-  out <- lapply(x, function(y){
+  out <- list()
+  out$summaries <- lapply(x, function(y){
     summary(y, performance)
   })
+  variable <- names(out$summaries)
+  tot_pop <- sapply(out$summaries, function(y) y$totals$population)
+  spec_pop <- sapply(out$summaries, function(y) y$totals$spec_population)
+  no_spec_pop <- tot_pop - spec_pop
+  p_pop_no_spec <- 1 - (spec_pop/tot_pop)
+  p_pop_spec <- 1 - p_pop_no_spec
+  n_bad_no_spec <- sapply(out$summaries, function(y) y$totals$bad - y$totals$spec_bad)
+  p_bad_no_spec <- n_bad_no_spec/(tot_pop - spec_pop)
+  gini <- sapply(out$summaries, function(y) y$gini)
+  out$info <- data.frame(
+    variable = variable,
+    tot_pop = tot_pop,
+    spec_pop = spec_pop,
+    no_spec_pop = no_spec_pop,
+    p_pop_no_spec = p_pop_no_spec,
+    p_pop_spec = p_pop_spec,
+    p_bad_no_spec = p_bad_no_spec,
+    gini_no_spec = gini
+  ) %>%
+    arrange(desc(gini)) %>%
+    cbind(rank=1:nrow(.), .)
   class(out) <- c('summary.wroc.list', 'list')
   out
 }
@@ -203,7 +225,7 @@ summary.wroc.list <- function(x, performance = T, ...){
 #' @rdname summary.wroc
 #' @export
 print.summary.wroc.list <- function(x, ...){
-  names_cond <- (mean(nchar(names(x))) > 15 | length(names(x)) > 10)
+  names_cond <- (mean(nchar(names(x$summaries))) > 15 | length(names(x$summaries)) > 10)
   if(names_cond){
     sep_names <- ',\n\t'
     tab_names <- '\t'
@@ -214,15 +236,21 @@ print.summary.wroc.list <- function(x, ...){
 
   cat(paste(
     sprintf('~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~'),
-    sprintf('List of %d ROC curves', length(x)),
+    sprintf('List of %d ROC curves', length(x$summaries)),
     sprintf('Variables:'),
-    paste0(tab_names, paste(names(x), collapse = sep_names)),
+    paste0(tab_names, paste(names(x$summaries), collapse = sep_names)),
     sprintf('\nDetails:\n\n'),
     sep = '\n'))
-  for(i in 1:length(x)){
-    if(i > 1) cat(sprintf('\n\n'))
-    cat(sprintf('=================================\nVariable: %s\n\n', names(x)[i]))
-    print(x[[i]])
-  }
+  y <- x$info
+  vars_num <- c('tot_pop','spec_pop','no_spec_pop')
+  vars_perc <- grep('p_', names(y), value = T)
+  y[vars_num] <- apply(y[vars_num], 2, function(s){
+    format(s, scientific = F, big.mark = ',')
+  })
+  y[vars_perc] <- apply(y[vars_perc], 2, function(s){
+    sprintf('%.2f%%', 100*s)
+  })
+  y$gini_no_spec <- round(y$gini_no_spec, 3)
+  print(y)
 }
 

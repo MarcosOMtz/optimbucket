@@ -695,11 +695,14 @@ subset.wroc <- function(x, buckets = NULL, ...){
 #'
 #' @param object An object of class \code{wroc}.
 #' @param performance Calculate performance measures as given by
-#'   \code{performance} (AUC, Gini, KS, IV)?
+#'   \code{performance} (AUC, Gini, KS, IV)
 #' @return An object of class \code{summary.wroc}, which has interesting
 #'   non-internal information about the ROC curve and prints prettily. If
 #'   performance = FALSE then performance is not run and hence the method will
-#'   be faster for ROC curves with a very large number of buckets.
+#'   be faster for ROC curves with a very large number of buckets. If
+#'   \code{object} is a list, then the return object has both a list of the
+#'   individual summaries and a table showing the most important information
+#'   about them in a compact way.
 #' @export
 summary.wroc <- function(object, performance = TRUE, ...){
   out <- list()

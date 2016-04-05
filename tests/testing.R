@@ -114,9 +114,9 @@ d <- rbind(goods, bads) %>%
   mutate(y = factor(y),
          z = 2*x + 1 + rnorm(ng+nb, 0, 5),
          w = round(x - z  - 1 + rnorm(ng+nb, 0, 1)),
-         w = ifelse(runif(ng+nb) < 0.2,
+         w = ifelse(runif(ng+nb) < 0.01,
                     -999,
-                    ifelse(runif(ng+nb) < 0.1,
+                    ifelse(runif(ng+nb) < 0.01,
                            -998,
                            w)))
 
@@ -162,7 +162,6 @@ wrs <- wroc(y ~ x + z, d, ngroups = 50, level.bad = 1,
 # wroc for all variables
 wrs <- wroc(y ~ ., d, ngroups = 50, level.bad = 1,
             special.values = list(w = c(-998, -999)))
-plot(wrs, save.pdf = F)
 
 # Manipulate wroc.list objects
 subset(wrs, keep=NULL, drop='z')

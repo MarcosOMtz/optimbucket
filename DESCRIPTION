@@ -1,7 +1,7 @@
 Package: optimbucket
 Type: Package
 Title: Optimal Bucketing Based on ROC Curves
-Version: 0.7.0
+Version: 0.7.1
 Author: Felipe Gerard
 Maintainer: Felipe Gerard <felipegerard@gmail.com>
 Description: This package helps bucket continuous and ordinal variables in a
@@ -10,7 +10,7 @@ Description: This package helps bucket continuous and ordinal variables in a
     original idea came from Ramón Jiménez, who came up with the "Optimal Gini
     Algorithm" and a subsequent way of pasting buckets for variables in Credit
     Scoring models.
-License: To be determined
+License: MIT
 Depends:
     R (>= 3.2.0)
 Imports:
