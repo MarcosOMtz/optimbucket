@@ -709,20 +709,22 @@ subset.wroc <- function(x, buckets = NULL, ...){
 summary.wroc <- function(object, performance = TRUE, ...){
   out <- list()
   if(object$nspecial > 0){
-    spvals <- cbind(type='special', object$special)
+    spvals <- cbind(data.frame(type='special', stringsAsFactors = F),
+                    object$special)
   } else{
     spvals <- NULL
   }
 
   out$info <- rbind(
-    spvals,
-    cbind(type='normal', object$info[-1,])) %>%
+      spvals,
+      cbind(data.frame(type='normal', stringsAsFactors = F), object$info[-1,])
+    ) %>%
     mutate(range = ifelse(row_number() < n(),
                           sprintf('(%.2f, %.2f]', lower_limit, upper_limit),
                           sprintf('(%.2f, %.2f)', lower_limit, upper_limit))) %>%
     dplyr::select(bucket, type, lower_limit, upper_limit, range,
-                  n_good, n_bad, population, p_bad,
-                  d_population, d_ac_good, d_ac_bad, woe) %>%
+                  n_good, n_bad, population, d_good, d_bad, d_population,
+                  d_ac_good, d_ac_bad, d_ac_population, p_bad, woe) %>%
     as.tbl()
   if(performance){
     out <- c(out, performance.wroc(object))
@@ -765,10 +767,80 @@ print.summary.wroc <- function(object, extended = FALSE, ...){
 }
 
 
+###############################################################
 
+#' Export WROCs and WROC Lists
+#'
+#' Serialize \code{wroc}'s, \code{wroc.list}'s or a list summaries as tables. There is
+#' also an option for copying them to clipboard for easy pasting into Excel.
+#'
+#' @param x An object of class \code{wroc} or \code{wroc.list}.
+#' @param export Should the table be exported? (As opposed to copied to the
+#'   clipboard).
+#' @param ... Additional parameters for \code{write.table}.
+#' @export
+copy <- function(x, ...) UseMethod("copy")
 
+#' @rdname copy
+#' @export
+copy.wroc <- function(x, export=FALSE, ...){
+  ellipsis <- list(...)
+  if(export){
+    if(is.null(ellipsis$file)){
+      file <- sprintf('WROC List %s', Sys.time())
+    }
+  } else{
+    if(is.null(ellipsis$file)){
+      file <- 'clipboard-12345'
+    }
+  }
 
+  temp <- summary(x)$info
+  temp$lower_limit <- gsub('-Inf', 'minus Inf', as.character(temp$lower_limit))
+  if(export){
+    write.table(temp, row.names = F, file = file, ...)
+  } else{
+    write.table(temp, file = file, sep = '\t', row.names = F, ...)
+  }
+}
 
+#' @rdname copy
+#' @export
+copy.wroc.list <- function(x, export=FALSE, ...){
+  ellipsis <- list(...)
+  if(export){
+    if(is.null(ellipsis$file)){
+      file <- sprintf('WROC List %s', Sys.time())
+    }
+  } else{
+    if(is.null(ellipsis$file)){
+      file <- 'clipboard-12345'
+    }
+  }
+
+  temp <- lapply(1:length(x), function(i){
+    cbind(data.frame(variable=names(x)[i], stringsAsFactors = F),
+          summary(x[[i]])$info,
+          stringsAsFactors = F)
+  }) %>%
+    rbind_all
+  temp$lower_limit <- gsub('-Inf', 'minus Inf', as.character(temp$lower_limit))
+  if(export){
+    write.table(temp, row.names = F, file = file, ...)
+  } else{
+    write.table(temp, row.names = F, file = file, sep = '\t', ...)
+  }
+}
+
+#' @rdname copy
+#' @export
+copy.summary.wroc.list <-  function(x, export=FALSE, ...){
+  if(export){
+    write.table(x$info, row.names = F, file = file, ...)
+  } else{
+    write.table(x$info, row.names = F, file='clipboard-12345', sep = '\t', ...)
+  }
+}
 
 
 
