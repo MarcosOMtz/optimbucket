@@ -296,7 +296,7 @@ plot.wroc <- function(x,
     if(include.special) ds <- rbind(x$special, ds)
     ds <- ds %>%
       mutate(barcol = ifelse(bucket < 0, 'salmon', 'darkgrey'),
-             linecol = ifelse(bucket < 0, 'salmon', 'black'))
+             pointcol = ifelse(bucket < 0, 'salmon', 'black'))
     brks <- 1:nrow(ds)
     labls <- sprintf('B%d: (%.2f, %.2f]',
                      ds$bucket,
@@ -309,9 +309,9 @@ plot.wroc <- function(x,
              norm_population = population*max(p_bad)/max(population)) %>%
       ggplot(aes(i, p_bad)) +
       geom_bar(aes(y=norm_population, fill=barcol), stat='identity') +
-      geom_point(aes(color=linecol)) +
+      geom_line(aes(color='black', group=pointcol)) +
+      geom_point(aes(color=pointcol)) +
       geom_point(color='black', shape=1) +
-      geom_line(aes(color=linecol)) +
       geom_text(aes(y = 0, label=sprintf('%.2f %%',100*d_population)),
                 size = 2, vjust=1) +
       scale_color_identity() +
@@ -327,7 +327,7 @@ plot.wroc <- function(x,
     if(include.special) ds <- rbind(x$special, ds)
     ds <- ds %>%
       mutate(barcol = ifelse(bucket < 0, 'salmon', 'darkgrey'),
-             linecol = ifelse(bucket < 0, 'salmon', 'black'))
+             pointcol = ifelse(bucket < 0, 'salmon', 'black'))
     brks <- 1:nrow(ds)
     labls <- sprintf('B%d: (%.2f, %.2f]',
                      ds$bucket,
@@ -340,9 +340,9 @@ plot.wroc <- function(x,
              norm_population = population*max(woe)/max(population)) %>%
       ggplot(aes(i, woe)) +
       geom_bar(aes(y=norm_population, fill=barcol), stat='identity') +
-      geom_point(aes(color=linecol)) +
+      geom_line(aes(color='black', group=pointcol)) +
+      geom_point(aes(color=pointcol)) +
       geom_point(color='black', shape=1) +
-      geom_line(aes(color=linecol)) +
       geom_text(aes(y = 0, label=sprintf('%.2f %%',100*d_population)),
                 size = 2, vjust=1) +
       scale_color_identity() +
