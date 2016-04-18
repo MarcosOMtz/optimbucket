@@ -453,22 +453,9 @@ analyze.wroc <- function(x,
 #' @export
 optimize <- function(x, ...) UseMethod("optimize")
 
-#' @describeIn optimize Optimize a single ROC curve.
-#' @inheritParams analyze.wroc
-#' @export
-optimize.wroc <- function(x, trend = c('auto','upper','lower')){
-  if('optimal.wroc' %in% class(x)){
-    warning('This is an already optimal ROC curve. Returning the input ROC curve. ')
-    return(x)
-  } else if('subset.wroc' %in% class(x)){
-    warning('This ROC curve has been manually tampered with. Resetting bucket names.')
-    x <- reset.buckets(x)
-  }
+# Internal function for optimize.wroc (optimal algorithm)
+optimize_optimal_ <- function(x, trend = c('auto','upper','lower')){
   ds <- x$info
-  if(!(trend[1] %in% c('auto','upper','lower'))){
-    warning('Invalid trend. Only "upper", "lower" or "auto" are valid. Defaulting to "auto".')
-    trend <- 'auto'
-  }
   if(trend[1] == 'auto'){
     trend <- choose.trend_(x)
   }
@@ -507,6 +494,82 @@ optimize.wroc <- function(x, trend = c('auto','upper','lower')){
 
   class(out) <- c('optimal.wroc', 'wroc')
   out
+}
+
+# Internal function for optimize.wroc (optimal preserving population)
+optimize_magic_ <- function(x, trend = c('auto','upper','lower'), min_p_pob=0.5){
+  ds <- x$info
+  if(trend[1] == 'auto'){
+    trend <- choose.trend_(x)
+  }
+  if(min_p_pob > 1 || min_p_pob < 0){
+    stop('min_p_pob must be between 0 and 1.')
+  }
+
+  which.fun <- ifelse(trend[1] == 'upper', which.max, which.min)
+
+  for(i in 1:(nrow(ds)-1)){
+    i
+    ####### AQUI VA
+  }
+
+  jumps <- sapply(1:(nrow(ds)-1), function(i){
+    len <- nrow(ds)
+    dx <- ds$d_ac_good[(i+1):len] - ds$d_ac_good[i]
+    dy <- ds$d_ac_bad[(i+1):len] - ds$d_ac_bad[i]
+    j <- ifelse(all(dy == 0) || all(dx == 0), length(dy),
+                which.fun(ifelse(dx == 0, Inf, dy/dx)))
+    j
+  })
+
+  ix <- rep(1, length(jumps)+1)
+  i <- 1
+  while(i <= length(jumps)){
+    if(jumps[i] > 1){
+      ix[i+1] <- jumps[i]
+      ix[(i+2):(i+jumps[i])] <- 0
+      i <- i + jumps[i]
+    } else{
+      i <- i + 1
+    }
+  }
+
+  aux <- cumsum(ix) - 1
+  ixx <- unique(aux)
+  buckets_to_remove <- ds[-1,]$bucket[which(!(1:(nrow(ds)-1) %in% ixx))]
+  out <- subset(x, buckets = buckets_to_remove)
+
+  # out$removed.buckets <- c(x$removed.buckets, buckets_to_remove)
+  out$trend <- trend
+  out$call.optimize <- match.call()
+
+  class(out) <- c('optimal.wroc', 'wroc')
+  out
+}
+
+#' @describeIn optimize Optimize a single ROC curve.
+#' @inheritParams analyze.wroc
+#' @export
+optimize.wroc <- function(x, trend = c('auto','upper','lower'), method = c('optimal')){
+  if('optimal.wroc' %in% class(x)){
+    warning('This is an already optimal ROC curve. Returning the input ROC curve. ')
+    return(x)
+  } else if('subset.wroc' %in% class(x)){
+    warning('This ROC curve has been manually tampered with. Resetting bucket names.')
+    x <- reset.buckets(x)
+  }
+  if(!(trend[1] %in% c('auto','upper','lower'))){
+    warning('Invalid trend. Only "upper", "lower" or "auto" are valid. Defaulting to "auto".')
+    trend <- 'auto'
+  }
+  if(trend[1] == 'auto'){
+    trend <- choose.trend_(x)
+  }
+  if(method[1] == 'optimal'){
+    optimize_optimal_(x, trend)
+  } else{
+    stop('Invalid method. Please choose one of "optimal", "magic" or "cascade".')
+  }
 }
 
 ###############################################################
