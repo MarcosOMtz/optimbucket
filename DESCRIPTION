@@ -1,7 +1,7 @@
 Package: optimbucket
 Type: Package
 Title: Optimal Bucketing Based on ROC Curves
-Version: 0.8.1
+Version: 0.8.2
 Author: Felipe Gerard
 Maintainer: Felipe Gerard <felipegerard@gmail.com>
 Description: This package helps bucket continuous and ordinal variables in a
@@ -19,3 +19,6 @@ Imports:
     tidyr
 LazyData: TRUE
 RoxygenNote: 5.0.1
+Suggests: knitr,
+    rmarkdown
+VignetteBuilder: knitr

@@ -1,6 +1,10 @@
 require(dplyr)
 require(tidyr)
 require(ggplot2)
+require(optimbucket)
+
+# This is just a comment
+function(){
 
 #### Data 1
 ng <- 10000
@@ -120,6 +124,13 @@ d <- rbind(goods, bads) %>%
                            -998,
                            w)))
 
+d %>%
+  filter(w > -998) %>%
+  gather(key, value, x, w, z) %>%
+  ggplot(aes(value, fill=y)) +
+  geom_density(alpha=0.5) +
+  facet_wrap(~ key)
+
 ggplot(d, aes(x, fill=y)) +
   geom_density(alpha=0.5)
 
@@ -179,7 +190,7 @@ owrs
 
 # Use a wroc object to paste WoE (or any other variable in a wroc$info table, such as bucket number or probability of default)
 predict(object = wrs$w, newdata = head(d),
-        variable = 'w', type = 'woe', keep.data = T)
+        type = 'woe')
 
 # Use a wroc.list object to paste several WoEs in one step
 predict(object = owrs, newdata = head(d), type = 'woe', keep.data = T)
@@ -187,7 +198,8 @@ predict(object = owrs, newdata = head(d), type = 'woe', keep.data = T)
 
 
 
-
+# End comment
+}
 
 
 
