@@ -72,7 +72,7 @@ plot.wroc.list <- function(x,
 #' @param trends A character vector containing the trend to choose for each
 #'   variable or 'auto' to let the algorithm find out on its own.
 #' @export
-optimize.wroc.list <- function(x, trends = 'auto', verbose = TRUE){
+optimize.wroc.list <- function(x, trends = 'auto', method = c('optimal', 'magic', 'cascade'), min_p_pob = 0.05, verbose = TRUE){
   if((length(trends) != length(x)) && (trends != 'auto')){
     stop('trends must be either "auto" or a character vector with a trend for each variable.')
   } else if((length(trends) == 1) && (trends == 'auto')){
@@ -85,7 +85,10 @@ optimize.wroc.list <- function(x, trends = 'auto', verbose = TRUE){
       cat(sprintf('(%d/%d) Optimizing variable %s\t@ %s\n',
                   i, length(x), names(x)[i], Sys.time()))
     }
-    x[[i]] <- optimize.wroc(x[[i]], trends[i])
+    x[[i]] <- optimize.wroc(x[[i]],
+                            trend = trends[i],
+                            method = method,
+                            min_p_pob = min_p_pob)
   }
   cat(sprintf('\nFinished optimizing ROC curves @ %s\n',
               Sys.time()))
