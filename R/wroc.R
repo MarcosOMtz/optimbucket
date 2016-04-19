@@ -188,6 +188,12 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
   out$nspecial <- nrow(out$special)
   out$totals <- totals
 
+  if(all(special_ix)){
+    # This is a dummy
+    out$info <- wroc.default(1:3, c(0,1,1))$info[c(1,1),]
+    out$info[2,c('bucket','upper_limit')] <- c(1, Inf)
+  }
+
   out
 }
 
