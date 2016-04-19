@@ -46,7 +46,7 @@ head(d)
 
 We can look at the separation each variable variable induces between the classes:
 
-```{r, echo=F, fig.width=8, fig.height=4}
+```{r, echo=T, fig.width=8, fig.height=4}
 d %>%
   filter(w > -998) %>%
   gather(key, value, x, w, z) %>%
