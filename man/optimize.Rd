@@ -9,10 +9,10 @@
 optimize(x, ...)
 
 \method{optimize}{wroc}(x, trend = c("auto", "upper", "lower"),
-  method = c("optimal", "magic", "cascade"), min_p_pob = 0.05)
+  method = c("magic", "optimal", "cascade"), min_p_pob = 0.05)
 
-\method{optimize}{wroc.list}(x, trends = "auto", method = c("optimal",
-  "magic", "cascade"), min_p_pob = 0.05, verbose = TRUE)
+\method{optimize}{wroc.list}(x, trends = "auto", method = c("magic",
+  "optimal", "cascade"), min_p_pob = 0.05, verbose = TRUE)
 }
 \arguments{
 \item{x}{An object of class \code{wroc}.}
@@ -20,7 +20,7 @@ optimize(x, ...)
 \item{trend}{The trend according to the cummulative ROC curve.}
 
 \item{method}{One of "optimal" (optimal Gini regardless of population),
-"magic" (tries to optimize Gini while keeping the distribution as
+"magic" [default] (tries to optimize Gini while keeping the distribution as
 homogeneous as possible) and "cascade" (iteratively pastes the smallest
 bucket left or right so as to lose as little Gini as possible).}
 

@@ -460,32 +460,21 @@ optimize_optimal_ <- function(x, trend = c('auto','upper','lower')){
     trend <- choose.trend_(x)
   }
 
-  which.fun <- ifelse(trend[1] == 'upper', which.max, which.min)
+  fun <- ifelse(trend[1] == 'upper', max, min)
 
-  jumps <- sapply(1:(nrow(ds)-1), function(i){
-    len <- nrow(ds)
-    dx <- ds$d_ac_good[(i+1):len] - ds$d_ac_good[i]
-    dy <- ds$d_ac_bad[(i+1):len] - ds$d_ac_bad[i]
-    j <- ifelse(all(dy == 0) || all(dx == 0), length(dy),
-                which.fun(ifelse(dx == 0, Inf, dy/dx)))
-    j
-  })
-
-  ix <- rep(1, length(jumps)+1)
+  keepers <- c(1)
   i <- 1
-  while(i <= length(jumps)){
-    if(jumps[i] > 1){
-      ix[i+1] <- jumps[i]
-      ix[(i+2):(i+jumps[i])] <- 0
-      i <- i + jumps[i]
-    } else{
-      i <- i + 1
-    }
+  while(i <= nrow(ds)-1){
+    dx <- ds$d_ac_good[(i+1):nrow(ds)] - ds$d_ac_good[i]
+    dy <- ds$d_ac_bad[(i+1):nrow(ds)] - ds$d_ac_bad[i]
+    slopes <- ifelse(dx == 0, Inf, dy/dx)
+    extrema_ix <- which(slopes == fun(slopes))
+    j <- max(extrema_ix)
+    keepers <- c(keepers, i + j)
+    i <- i + j
   }
 
-  aux <- cumsum(ix) - 1
-  ixx <- unique(aux)
-  buckets_to_remove <- ds[-1,]$bucket[which(!(1:(nrow(ds)-1) %in% ixx))]
+  buckets_to_remove <- ds$bucket[!(1:nrow(ds) %in% keepers)]
   out <- subset(x, buckets = buckets_to_remove)
 
   # out$removed.buckets <- c(x$removed.buckets, buckets_to_remove)
@@ -545,13 +534,13 @@ optimize_magic_ <- function(x, trend = c('auto','upper','lower'), min_p_pob=0.5)
 #' @describeIn optimize Optimize a single ROC curve.
 #' @inheritParams analyze.wroc
 #' @param method One of "optimal" (optimal Gini regardless of population),
-#'   "magic" (tries to optimize Gini while keeping the distribution as
+#'   "magic" [default] (tries to optimize Gini while keeping the distribution as
 #'   homogeneous as possible) and "cascade" (iteratively pastes the smallest
 #'   bucket left or right so as to lose as little Gini as possible).
 #' @param min_p_pob Numeric between 0 and 1. Minimum proportion of population to
 #'   keep in each bucket. Only for methods "magic" and "cascade",
 #' @export
-optimize.wroc <- function(x, trend = c('auto','upper','lower'), method = c('optimal', 'magic', 'cascade'), min_p_pob = 0.05){
+optimize.wroc <- function(x, trend = c('auto','upper','lower'), method = c('magic', 'optimal', 'cascade'), min_p_pob = 0.05){
   if('optimal.wroc' %in% class(x)){
     warning('This is an already optimal ROC curve. Returning the input ROC curve. ')
     return(x)
