@@ -100,48 +100,53 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
 
   # Homogeneous summarized format
   if(info_type == 'long'){
-    s <- data.frame(predictions = predictions,
-                    n_bad = (labels == level.bad),
-                    n_good = (labels != level.bad))
+    predictions <- predictions
+    labels <- data.frame(
+      n_bad = as.numeric(labels == level.bad),
+      n_good = as.numeric(labels != level.bad)
+    )
   } else{
-    s <- data.frame(predictions = predictions,
-                    n_bad = labels[,col.bad],
-                    n_good = labels[,which(!(1:2 %in% col.bad))])
+    predictions <- predictions
+    labels <- data.frame(
+      n_bad = labels[,col.bad],
+      n_good = labels[,which(!(1:2 %in% col.bad))]
+    )
   }
-
-  col.bad = 1
-  s <- s %>%
-    group_by(predictions) %>%
-    summarise(n_bad = sum(n_bad),
-              n_good = sum(n_good))
-  predictions <- s$predictions
-  labels <- s[, -1]
-  rm(s)
 
   # Deal with special values separately
   if(!is.null(special.values)){
     special.values <- unique(special.values)
     special <- list()
-    special$ix <- sapply(predictions, function(i){
+    special_ix <- sapply(predictions, function(i){
       (i %in% special.values)
     })
-    special$buckets <- as.numeric(sapply(predictions[special$ix], function(i){
+    special$buckets <- as.numeric(sapply(predictions[special_ix], function(i){
       -which(i == special.values)
     }))
-    special$predictions <- predictions[special$ix]
-    special$labels <- labels[special$ix,]
+    special$predictions <- predictions[special_ix]
+    special$n_bad <- labels[special_ix,'n_bad']
+    special$n_good <- labels[special_ix,'n_good']
+    special <- special %>%
+      as.data.frame() %>%
+      group_by(buckets, predictions) %>%
+      summarise(n_bad = sum(n_bad),
+                n_good = sum(n_good))
 
     regular <- list()
-    regular$predictions <- predictions[!special$ix]
-    regular$labels <- labels[!special$ix,]
+    regular$predictions <- predictions[!special_ix]
+    regular$n_bad <- labels[!special_ix,'n_bad']
+    regular$n_good <- labels[!special_ix,'n_good']
   } else {
     special <- list()
-    special$ix <- rep(F, length(predictions))
     special$buckets <- NULL
+    special$predictions <- NULL
+    special$n_bad <- NULL
+    special$n_good <- NULL
 
     regular <- list()
     regular$predictions <- predictions
-    regular$labels <- labels
+    regular$n_bad <- labels$n_bad
+    regular$n_good <- labels$n_good
   }
 
 
@@ -151,15 +156,18 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
     regular$buckets <- factor(regular$predictions)
   } else{
     # regular$buckets <- as.numeric(cut2(regular$predictions, g = ngroups))
-    regular$buckets <- as.numeric(qcut2(regular$predictions, g = ngroups)$x)
+    regular$buckets <- as.numeric(qcut3(regular$predictions,
+                                        wt = regular$n_bad + regular$n_good,
+                                        g = ngroups)$x)
   }
 
   # And summarizing
-  ix <- (apply(labels, 1, sum) != 0)
+  ix <- c((special$n_bad + special$n_good != 0),
+          (regular$n_bad + regular$n_good != 0))
   info <- data.frame(bucket = c(special$buckets, regular$buckets),
                      x = c(special$predictions, regular$predictions),
-                     n_bad = c(special$labels$n_bad, regular$labels$n_bad),
-                     n_good = c(special$labels$n_good, regular$labels$n_good)) %>%
+                     n_bad = c(special$n_bad, regular$n_bad),
+                     n_good = c(special$n_good, regular$n_good)) %>%
     filter(ix) %>%
     group_by(bucket) %>%
     summarise(population = sum(n_bad) + sum(n_good),
@@ -221,7 +229,7 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
   out$nspecial <- nrow(out$special)
   out$totals <- totals
 
-  if(all(special$ix)){
+  if(length(special$ix > 0) && all(special$ix)){
     # This is a dummy
     out$info <- wroc.default(1:3, c(0,1,1))$info[c(1,1),]
     out$info[2,c('bucket','upper_limit')] <- c(1, Inf)

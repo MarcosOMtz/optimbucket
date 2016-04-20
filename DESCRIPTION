@@ -16,7 +16,8 @@ Depends:
 Imports:
     dplyr,
     ggplot2,
-    tidyr
+    tidyr,
+    Hmisc
 LazyData: TRUE
 RoxygenNote: 5.0.1
 Suggests: knitr,

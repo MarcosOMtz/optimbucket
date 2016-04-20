@@ -39,7 +39,7 @@ c.wroc.list <- function(...){
 plot.wroc.list <- function(x,
                            type = c("accum", "roc", "trend", "woe"),
                            include.special = TRUE,
-                           save.pdf = TRUE,
+                           save.pdf = FALSE,
                            file = 'Wroc Plots.pdf',
                            ...){
   if(save.pdf){

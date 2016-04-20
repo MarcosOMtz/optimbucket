@@ -57,3 +57,24 @@ qcut2 <- function(x, g=10){
     percentages = c(round(percentages, 3), 1)
   )
 }
+
+# Using weighted quantiles
+qcut3 <- function(x, wt, g=10){
+  if(!is.numeric(g) || g <= 0) stop("g should be a positive integer.")
+  if(is.factor(x)){
+    warning("Converting factor to numeric.")
+    x <- as.numeric(x)
+  }
+  percentages <- seq(1/g, 1-(1/g), l=g-1)
+  qq <- Hmisc::wtd.quantile(x, weights = wt, probs = percentages)
+  y <- cut(x,
+           breaks=c(-Inf,
+                    unique(qq),
+                    Inf),
+           include.lowest = TRUE,
+           right = TRUE)
+  list(
+    x = y,
+    percentages = c(round(percentages, 3), 1)
+  )
+}
