@@ -1,7 +1,7 @@
 Package: optimbucket
 Type: Package
 Title: Optimal Bucketing Based on ROC Curves
-Version: 0.9.4
+Version: 0.9.5
 Author: Felipe Gerard
 Maintainer: Felipe Gerard <felipegerard@gmail.com>
 Description: This package helps bucket continuous and ordinal variables in a

@@ -188,7 +188,7 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
   totals$good <- totals$population - totals$bad
   totals$spec_good <- totals$spec_population - totals$spec_bad
 
-  # Finish info table
+  ## Finish info table
   out$info <- info %>%
     mutate(n_good = population - n_bad,
            p_bad = n_bad / population,
@@ -196,25 +196,70 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
            ac_population = c(rep(NA, sum(ix)), cumsum(population[!ix])),
            ac_bad = c(rep(NA, sum(ix)), cumsum(n_bad[!ix])),
            ac_good = c(rep(NA, sum(ix)), cumsum(n_good[!ix])),
-           d_population = population/totals$population,
-           d_bad = n_bad/totals$bad,
-           d_good = n_good/totals$good,
-           d_ac_population = ifelse(ix, NA,
-                                    ac_population/(totals$population - totals$spec_population)),
-           d_ac_bad = ifelse(ix, NA,
-                             ac_bad/(totals$bad - totals$spec_bad)),
-           d_ac_good = ifelse(ix, NA,
-                              ac_good/(totals$good - totals$spec_good)),
-           woe = ifelse(p_bad == 0 | p_good == 0, NA, log(p_good/p_bad)))
+           d_population = population/totals$population)
+  # Special cases if there are no obs of a class
+  if(totals$bad != 0){
+    aux <- out$info$n_bad/totals$bad
+    if(totals$good != 0){
+      out$info$d_bad <- aux
+      out$info$d_good <- out$info$n_good/totals$good
+    } else{
+      out$info$d_bad <- aux
+      out$info$d_good <- aux
+    }
+  } else if(totals$good != 0){
+    aux <- out$info$n_good/totals$good
+    out$info$d_bad <- aux
+    out$info$d_good <- aux
+  } else{
+    stop('There are no good or bads. Check your data.')
+  }
+
+  # Special cases if there are only special values for goods, bads or population
+  if(totals$population != totals$spec_population){
+    out$info$d_ac_population <- out$info$ac_population/(totals$population - totals$spec_population)
+  } else{
+    out$info$d_ac_population <- ifelse(ix, NA, 1)
+  }
+
+  if(totals$bad != totals$spec_bad){
+    aux <- out$info$ac_bad/(totals$bad - totals$spec_bad)
+    if(totals$good != totals$spec_good){
+      out$info$d_ac_bad <- aux
+      out$info$d_ac_good <- out$info$ac_good/(totals$good - totals$spec_good)
+    } else{
+      out$info$d_ac_bad <- aux
+      out$info$d_ac_good <- aux
+    }
+  } else{
+      if(totals$good != totals$spec_good){
+        aux <- out$info$ac_good/(totals$good - totals$spec_good)
+        out$info$d_ac_bad <- aux
+        out$info$d_ac_good <- aux
+      } else{
+        stop('There are no good or bads. Check your data.')
+      }
+  }
+
+  # Weight of Evidence
+  out$info$woe <- ifelse(out$info$p_bad == 0 | out$info$p_good == 0,
+                         NA,
+                         log(out$info$p_good/out$info$p_bad))
 
   if(any(is.na(out$info$woe))){
-    warning('Some buckets have observations of a single class. Replacing WoE with twice the maximum / minimum WoE among other buckets.')
+    if(all(is.na(out$info$woe))){
+      warning('All buckets have observations of a single class. Replacing WoE with +5 if there are only goods and -5 if there are only bads.')
+      out$info <- out$info %>%
+        mutate(woe = ifelse(p_bad == 0, 5, -5))
+    } else{
+      warning('Some buckets have observations of a single class. Replacing WoE with twice the maximum / minimum WoE among other buckets.')
     out$info <- out$info %>%
       mutate(woe = ifelse(is.na(woe),
                           ifelse(p_bad == 0,
                                  2*max(woe, na.rm = T),
                                  2*min(woe, na.rm = T)),
                           woe))
+    }
   }
 
   out$special <- out$info[ix,]
