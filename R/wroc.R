@@ -137,6 +137,7 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
     regular$n_bad <- labels[!special_ix,'n_bad']
     regular$n_good <- labels[!special_ix,'n_good']
   } else {
+    special_ix <- logical(0)
     special <- list()
     special$buckets <- NULL
     special$predictions <- NULL
@@ -229,9 +230,11 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
   out$nspecial <- nrow(out$special)
   out$totals <- totals
 
-  if(length(special$ix > 0) && all(special$ix)){
+  if(length(special_ix > 0) && all(special_ix)){
     # This is a dummy
-    out$info <- wroc.default(1:3, c(0,1,1))$info[c(1,1),]
+    suppressWarnings(
+      out$info <- wroc.default(1:3, c(0,1,1))$info[c(1,1),]
+    )
     out$info[2,c('bucket','upper_limit')] <- c(1, Inf)
   }
 
@@ -642,19 +645,29 @@ performance <- function(x, ...) UseMethod("performance")
 performance.wroc <- function(x){
   ds <- x$info
 
-  tr <- ds %>%
-    mutate(dx = (d_ac_good - dplyr::lag(d_ac_good)),
-           bases_auc = (d_ac_bad + dplyr::lag(d_ac_bad)),
-           bases_gini_up_raw = pmax(d_ac_bad - d_ac_good, 0),
-           bases_gini_up = bases_gini_up_raw + lag(bases_gini_up_raw),
-           bases_gini_down_raw = pmax(d_ac_good - d_ac_bad, 0),
-           bases_gini_down = bases_gini_down_raw + lag(bases_gini_down_raw),
-           area_auc = bases_auc*dx/2,
-           area_gini_up = bases_gini_up*dx/2,
-           area_gini_down = bases_gini_down*dx/2,
-           ks_prospect = abs(d_good - d_bad),
-           iv_contribution = (d_good - d_bad)*woe) %>%
-    .[-1,]
+  if(x$ngroups == 0){ # There are only special values
+    tr <- data.frame(
+      area_auc = 0.5,
+      area_gini_up = 0,
+      area_gini_down = 0,
+      ks_prospect = 0,
+      iv_contribution = 0
+    )
+  } else{
+    tr <- ds %>%
+      mutate(dx = (d_ac_good - dplyr::lag(d_ac_good)),
+             bases_auc = (d_ac_bad + dplyr::lag(d_ac_bad)),
+             bases_gini_up_raw = pmax(d_ac_bad - d_ac_good, 0),
+             bases_gini_up = bases_gini_up_raw + lag(bases_gini_up_raw),
+             bases_gini_down_raw = pmax(d_ac_good - d_ac_bad, 0),
+             bases_gini_down = bases_gini_down_raw + lag(bases_gini_down_raw),
+             area_auc = bases_auc*dx/2,
+             area_gini_up = bases_gini_up*dx/2,
+             area_gini_down = bases_gini_down*dx/2,
+             ks_prospect = abs(d_good - d_bad),
+             iv_contribution = (d_good - d_bad)*woe) %>%
+      .[-1,]
+  }
 
   out <- list()
   out$auc <- sum(tr$area_auc)
@@ -705,6 +718,9 @@ predict.wroc  <- function(object,
                           type = c('woe','bucket','p_bad')){
 
   type <- type[1]
+  if(!(type %in% names(object$info))){
+    stop('Type must be a column name of object$info, such as "woe", "p_bad" and "bucket".')
+  }
   if(!is.numeric(newdata)){
     warning('newdata must be numeric. Attempting to coerce to numeric.')
     newdata <- as.numeric(newdata)
@@ -722,12 +738,19 @@ predict.wroc  <- function(object,
     as.numeric()
   out[special_ix] <- newdata[special_ix]
 
-  vals <- rbind(object$info[-1,c('bucket',type)],
-                object$special[,c('upper_limit',type)] %>%
-                  rename(bucket=upper_limit))
-  yhat <- data.frame(bucket=out) %>%
-    left_join(vals, by='bucket') %>%
-    .[[type]]
+  vals <- rbind(
+    data.frame(
+      id = object$info$bucket[-1],
+      type = object$info[[type]][-1]
+    ),
+    data.frame(
+      id = object$special$upper_limit,
+      type = object$special[[type]]
+    )
+  )
+  yhat <- data.frame(id=out) %>%
+    left_join(vals, by='id') %>%
+    .$type
   yhat
 }
 
