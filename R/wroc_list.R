@@ -110,8 +110,10 @@ predict.wroc.list <- function(object,
                               keep.data = FALSE,
                               prefix = type[1],
                               verbose = (nrow(newdata)*length(object) > 10000)){
-  cat(sprintf('~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~\nTransforming %d variables to %s...\n\n',
+  if(verbose){
+    cat(sprintf('~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~\nTransforming %d variables to %s...\n\n',
               length(object), type[1]))
+  }
   yhats <- list()
   for(i in 1:length(object)){
     if(verbose){

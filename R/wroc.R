@@ -218,27 +218,31 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
   # Special cases if there are only special values for goods, bads or population
   if(totals$population != totals$spec_population){
     out$info$d_ac_population <- out$info$ac_population/(totals$population - totals$spec_population)
-  } else{
-    out$info$d_ac_population <- ifelse(ix, NA, 1)
-  }
-
-  if(totals$bad != totals$spec_bad){
-    aux <- out$info$ac_bad/(totals$bad - totals$spec_bad)
-    if(totals$good != totals$spec_good){
-      out$info$d_ac_bad <- aux
-      out$info$d_ac_good <- out$info$ac_good/(totals$good - totals$spec_good)
-    } else{
-      out$info$d_ac_bad <- aux
-      out$info$d_ac_good <- aux
-    }
-  } else{
+    
+    if(totals$bad != totals$spec_bad){
+      aux <- out$info$ac_bad/(totals$bad - totals$spec_bad)
       if(totals$good != totals$spec_good){
+        out$info$d_ac_bad <- aux
+        out$info$d_ac_good <- out$info$ac_good/(totals$good - totals$spec_good)
+      } else{
+        out$info$d_ac_bad <- aux
+        out$info$d_ac_good <- aux
+      }
+    } else{
+      if(totals$good != totals$spec_good){ # For clarity
         aux <- out$info$ac_good/(totals$good - totals$spec_good)
         out$info$d_ac_bad <- aux
         out$info$d_ac_good <- aux
       } else{
-        stop('There are no good or bads. Check your data.')
+        stop("This can't happen.")
       }
+    }
+    
+  } else{
+    aux <- ifelse(ix, NA, 1)
+    out$info$d_ac_population <- aux
+    out$info$d_ac_bad <- aux
+    out$info$d_ac_good <- aux
   }
 
   # Weight of Evidence
@@ -280,7 +284,7 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
     suppressWarnings(
       out$info <- wroc.default(1:3, c(0,1,1))$info[c(1,1),]
     )
-    out$info[2,c('bucket','upper_limit')] <- c(1, Inf)
+    out$info[2,c('bucket','upper_limit','d_ac_population','d_ac_bad','d_ac_good')] <- c(1, Inf, 1, 1, 1)
   }
 
   out
