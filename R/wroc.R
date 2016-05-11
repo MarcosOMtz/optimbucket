@@ -218,7 +218,7 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
   # Special cases if there are only special values for goods, bads or population
   if(totals$population != totals$spec_population){
     out$info$d_ac_population <- out$info$ac_population/(totals$population - totals$spec_population)
-    
+
     if(totals$bad != totals$spec_bad){
       aux <- out$info$ac_bad/(totals$bad - totals$spec_bad)
       if(totals$good != totals$spec_good){
@@ -237,7 +237,7 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
         stop("This can't happen.")
       }
     }
-    
+
   } else{
     aux <- ifelse(ix, NA, 1)
     out$info$d_ac_population <- aux
@@ -713,7 +713,7 @@ performance.wroc <- function(x){
              area_auc = bases_auc*dx/2,
              area_gini_up = bases_gini_up*dx/2,
              area_gini_down = bases_gini_down*dx/2,
-             ks_prospect = abs(d_good - d_bad),
+             ks_prospect = abs(d_ac_good - d_ac_bad),
              iv_contribution = (d_good - d_bad)*woe) %>%
       .[-1,]
   }
