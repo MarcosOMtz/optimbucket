@@ -1,7 +1,7 @@
 
-require(dplyr)
-require(tidyr)
-require(ggplot2)
+# Local version of %>% in case it is not already imported and so that I don't need to use dplyr::%>%
+#' @export
+`%>%` <- dplyr::`%>%`
 
 # cut has a bug with frontier values sometimes
 cut_ <- function(x, breaks){

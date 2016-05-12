@@ -1,8 +1,4 @@
 
-require(dplyr)
-require(tidyr)
-require(ggplot2)
-
 ###############################################################
 
 #' @rdname wroc
@@ -211,7 +207,7 @@ summary.wroc.list <- function(x, performance = T, ...){
   n_bad_no_spec <- sapply(out$summaries, function(y) y$totals$bad - y$totals$spec_bad)
   p_bad_no_spec <- n_bad_no_spec/(tot_pop - spec_pop)
   p_pop_smallest <- sapply(out$summaries, function(y){
-    regular <- filter(y$info, type == 'normal')
+    regular <- dplyr::filter(y$info, type == 'normal')
     min(regular$d_population)
   })
   gini <- sapply(out$summaries, function(y) y$gini)
@@ -226,7 +222,7 @@ summary.wroc.list <- function(x, performance = T, ...){
     p_bad_no_spec = p_bad_no_spec,
     gini_no_spec = gini
   ) %>%
-    arrange(desc(gini)) %>%
+    dplyr::arrange(dplyr::desc(gini)) %>%
     cbind(rank=1:nrow(.), .)
   class(out) <- c('summary.wroc.list', 'list')
   out

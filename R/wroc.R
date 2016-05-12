@@ -1,8 +1,4 @@
 
-require(dplyr)
-require(tidyr)
-require(ggplot2)
-
 # Local helper functions
 
 #' Reset Bucket Numbers of \code{wroc} Objects
@@ -26,7 +22,7 @@ performance.wroc.info_ <- function(ds, trend = c('upper','lower')){
   sign_trend <- ifelse(trend[1]=='upper', 1, -1)
 
   tr <- ds %>%
-    mutate(dx = d_ac_good - dplyr::lag(d_ac_good),
+    dplyr::mutate(dx = d_ac_good - dplyr::lag(d_ac_good),
            dx_skip = dplyr::lead(d_ac_good) - dplyr::lag(d_ac_good),
            bases_gini_raw = pmax(sign_trend*(d_ac_bad - d_ac_good), 0),
            bases_gini = bases_gini_raw + lag(bases_gini_raw),
@@ -128,8 +124,8 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
     special$n_good <- labels[special_ix,'n_good']
     special <- special %>%
       as.data.frame() %>%
-      group_by(buckets, predictions) %>%
-      summarise(n_bad = sum(n_bad),
+      dplyr::group_by(buckets, predictions) %>%
+      dplyr::summarise(n_bad = sum(n_bad),
                 n_good = sum(n_good))
 
     regular <- list()
@@ -169,9 +165,9 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
                      x = c(special$predictions, regular$predictions),
                      n_bad = c(special$n_bad, regular$n_bad),
                      n_good = c(special$n_good, regular$n_good)) %>%
-    filter(ix) %>%
-    group_by(bucket) %>%
-    summarise(population = sum(n_bad) + sum(n_good),
+    dplyr::filter(ix) %>%
+    dplyr::group_by(bucket) %>%
+    dplyr::summarise(population = sum(n_bad) + sum(n_good),
               lower_limit = max(x),
               upper_limit = max(x), # Gets lagged later
               n_bad = sum(n_bad))
@@ -190,7 +186,7 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
 
   ## Finish info table
   out$info <- info %>%
-    mutate(n_good = population - n_bad,
+    dplyr::mutate(n_good = population - n_bad,
            p_bad = n_bad / population,
            p_good = 1 - p_bad,
            ac_population = c(rep(NA, sum(ix)), cumsum(population[!ix])),
@@ -254,11 +250,11 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
     if(all(is.na(out$info$woe))){
       warning('All buckets have observations of a single class. Replacing WoE with +5 if there are only goods and -5 if there are only bads.')
       out$info <- out$info %>%
-        mutate(woe = ifelse(p_bad == 0, 5, -5))
+        dplyr::mutate(woe = ifelse(p_bad == 0, 5, -5))
     } else{
       warning('Some buckets have observations of a single class. Replacing WoE with twice the maximum / minimum WoE among other buckets.')
     out$info <- out$info %>%
-      mutate(woe = ifelse(is.na(woe),
+      dplyr::mutate(woe = ifelse(is.na(woe),
                           ifelse(p_bad == 0,
                                  2*max(woe, na.rm = T),
                                  2*min(woe, na.rm = T)),
@@ -394,7 +390,7 @@ plot.wroc <- function(x,
     ds <- x$info[-1,]
     if(include.special) ds <- rbind(x$special, ds)
     ds <- ds %>%
-      mutate(barcol = ifelse(bucket < 0, 'salmon', 'darkgrey'),
+      dplyr::mutate(barcol = ifelse(bucket < 0, 'salmon', 'darkgrey'),
              pointcol = ifelse(bucket < 0, 'salmon', 'black'))
     brks <- 1:nrow(ds)
     labls <- sprintf('B%d: (%.2f, %.2f]',
@@ -404,7 +400,7 @@ plot.wroc <- function(x,
     if(include.special) labls[1:nrow(x$special)] <- gsub('\\(','[',labls[1:nrow(x$special)])
     labls[length(labls)] <- gsub(']',')',labls[length(labls)])
     p <- ds %>%
-      mutate(i = row_number(),
+      dplyr::mutate(i = row_number(),
              norm_population = population*max(p_bad)/max(population)) %>%
       ggplot(aes(i, p_bad)) +
       geom_bar(aes(y=norm_population, fill=barcol), stat='identity') +
@@ -425,7 +421,7 @@ plot.wroc <- function(x,
     ds <- x$info[-1,]
     if(include.special) ds <- rbind(x$special, ds)
     ds <- ds %>%
-      mutate(barcol = ifelse(bucket < 0, 'salmon', 'darkgrey'),
+      dplyr::mutate(barcol = ifelse(bucket < 0, 'salmon', 'darkgrey'),
              pointcol = ifelse(bucket < 0, 'salmon', 'black'))
     brks <- 1:nrow(ds)
     labls <- sprintf('B%d: (%.2f, %.2f]',
@@ -435,7 +431,7 @@ plot.wroc <- function(x,
     if(include.special) labls[1:nrow(x$special)] <- gsub('\\(','[',labls[1:nrow(x$special)])
     labls[length(labls)] <- gsub(']',')',labls[length(labls)])
     p <- ds %>%
-      mutate(i = row_number(),
+      dplyr::mutate(i = row_number(),
              norm_population = population*max(woe)/max(population)) %>%
       ggplot(aes(i, woe)) +
       geom_bar(aes(y=norm_population, fill=barcol), stat='identity') +
@@ -704,7 +700,7 @@ performance.wroc <- function(x){
     )
   } else{
     tr <- ds %>%
-      mutate(dx = (d_ac_good - dplyr::lag(d_ac_good)),
+      dplyr::mutate(dx = (d_ac_good - dplyr::lag(d_ac_good)),
              bases_auc = (d_ac_bad + dplyr::lag(d_ac_bad)),
              bases_gini_up_raw = pmax(d_ac_bad - d_ac_good, 0),
              bases_gini_up = bases_gini_up_raw + lag(bases_gini_up_raw),
@@ -895,13 +891,13 @@ summary.wroc <- function(object, performance = TRUE, ...){
       spvals,
       cbind(data.frame(type='normal', stringsAsFactors = F), object$info[-1,])
     ) %>%
-    mutate(range = ifelse(row_number() < n(),
+    dplyr::mutate(range = ifelse(row_number() < n(),
                           sprintf('(%.2f, %.2f]', lower_limit, upper_limit),
                           sprintf('(%.2f, %.2f)', lower_limit, upper_limit))) %>%
     dplyr::select(bucket, type, lower_limit, upper_limit, range,
                   n_good, n_bad, population, d_good, d_bad, d_population,
                   d_ac_good, d_ac_bad, d_ac_population, p_bad, woe) %>%
-    as.tbl()
+    dplyr::as.tbl()
   if(performance){
     out <- c(out, performance.wroc(object))
   }
@@ -915,8 +911,8 @@ summary.wroc <- function(object, performance = TRUE, ...){
 #' @param extended Should details be printed?
 #' @export
 print.summary.wroc <- function(object, extended = FALSE, ...){
-  regular <- filter(object$info, type == 'normal')
-  special <- filter(object$info, type == 'special')
+  regular <- dplyr::filter(object$info, type == 'normal')
+  special <- dplyr::filter(object$info, type == 'special')
   tot <- object$totals
   out <- sprintf(
     'Regular Buckets: %d\nSpecial Buckets: %d\nTotal Population: %d\nSpecial Population: %d (%.2f%%)\nSmallest bucket Pop.: %d (%.2f%%)',
