@@ -45,11 +45,15 @@ plot.wroc.list <- function(x,
   }
   out <- list()
   for(i in 1:length(x)){
+    if(type[1] == 'accum') ti <- sprintf('Accumulation: %s', names(x)[i])
+    else if(type[1] == 'roc') ti <- sprintf('ROC: %s', names(x)[i])
+    else if(type[1] == 'trend') ti <- sprintf('Default Rate: %s', names(x)[i])
+    else if(type[1] == 'woe') ti <- sprintf('WoE: %s', names(x)[i])
     print(
       out[[names(x)[i]]] <- plot(x[[i]],
                                  type = type,
                                  include.special = include.special) +
-        labs(title=names(x)[i])
+        labs(title=ti)
     )
     if(!save.pdf){
       readline(sprintf('(%d/%d) %s plot of variable %s',

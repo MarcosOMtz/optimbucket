@@ -373,7 +373,7 @@ plot.wroc <- function(x,
       geom_point() +
       geom_point(size=1.5, shape=1, color='black') +
       scale_color_gradientn(colours = c('blue','green','yellow','red')) +
-      labs(x='Cumulative % Goods (tnr)',y='Cumulative % Bads (fnr)') +
+      labs(title='Accumulation', x='Cumulative % Goods (tnr)',y='Cumulative % Bads (fnr)') +
       coord_equal()
   } else if(type[1] == 'roc'){
     p <- x$info %>%
@@ -384,7 +384,7 @@ plot.wroc <- function(x,
       geom_point() +
       geom_point(size=1.5, shape=1, color='black') +
       scale_color_gradientn(colours = c('blue','green','yellow','red')) +
-      labs(x='fpr',y='tpr') +
+      labs(title='ROC Curve', x='fpr',y='tpr') +
       coord_equal()
   } else if(type[1] == 'trend'){
     ds <- x$info[-1,]
@@ -401,21 +401,22 @@ plot.wroc <- function(x,
     labls[length(labls)] <- gsub(']',')',labls[length(labls)])
     p <- ds %>%
       dplyr::mutate(i = row_number(),
-             norm_population = population*max(p_bad)/max(population)) %>%
-      ggplot(aes(i, p_bad)) +
-      geom_bar(aes(y=norm_population, fill=barcol), stat='identity') +
-      geom_line(aes(color='black', group=pointcol)) +
-      geom_point(aes(color=pointcol)) +
-      geom_point(color='black', shape=1) +
-      geom_text(aes(y = 0, label=sprintf('%.2f %%',100*d_population)),
-                size = 2, vjust=1) +
+             norm_p_bad = p_bad*max(d_population)/max(p_bad)) %>%
+      ggplot(aes(i)) +
+      geom_bar(aes(y=d_population, fill=barcol), stat='identity') +
+      geom_line(aes(y=norm_p_bad, color='black', group=pointcol)) +
+      geom_point(aes(y=norm_p_bad, color=pointcol)) +
+      # geom_point(y=norm_p_bad, color='black', shape=1) +
+      geom_text(aes(y = norm_p_bad, label=sprintf('%.2f %%',100*norm_p_bad)),
+                size = 2, vjust=-1) +
       scale_color_identity() +
       scale_fill_identity() +
       scale_x_continuous(breaks=brks,labels=labls) +
       scale_y_continuous(labels = scales::percent) +
       theme(axis.text.x = element_text(angle=90)) +
-      labs(x = 'Bucket',
-           y = 'Default Rate')
+      labs(title = 'Default Rate',
+           x = 'Bucket',
+           y = '% Population')
 
   } else if(type[1] == 'woe'){
     ds <- x$info[-1,]
@@ -432,20 +433,22 @@ plot.wroc <- function(x,
     labls[length(labls)] <- gsub(']',')',labls[length(labls)])
     p <- ds %>%
       dplyr::mutate(i = row_number(),
-             norm_population = population*max(woe)/max(population)) %>%
-      ggplot(aes(i, woe)) +
-      geom_bar(aes(y=norm_population, fill=barcol), stat='identity') +
-      geom_line(aes(color='black', group=pointcol)) +
-      geom_point(aes(color=pointcol)) +
-      geom_point(color='black', shape=1) +
-      geom_text(aes(y = 0, label=sprintf('%.2f %%',100*d_population)),
-                size = 2, vjust=1) +
+                    norm_woe = woe*max(d_population)/max(woe)) %>%
+      ggplot(aes(i)) +
+      geom_bar(aes(y=d_population, fill=barcol), stat='identity') +
+      geom_line(aes(y=norm_woe, color='black', group=pointcol)) +
+      geom_point(aes(y=norm_woe, color=pointcol)) +
+      # geom_point(y=norm_p_bad, color='black', shape=1) +
+      geom_text(aes(y = norm_woe, label=round(woe, 2)),
+                size = 2, vjust=-1) +
       scale_color_identity() +
       scale_fill_identity() +
       scale_x_continuous(breaks=brks,labels=labls) +
+      scale_y_continuous(labels = scales::percent) +
       theme(axis.text.x = element_text(angle=90)) +
-      labs(x = 'Bucket',
-           y = 'Weight of Evidence')
+      labs(title = 'Weight of Evidence',
+           x = 'Bucket',
+           y = '% Population')
   }
   p
 }
