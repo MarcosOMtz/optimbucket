@@ -42,7 +42,7 @@ choose.trend_ <- function(x){
 
 #' Create Flexible ROC Curves
 #'
-#' \code{wroc} build ROC curves based on either a raw variable or a summarized
+#' \code{wroc} builds ROC curves based on either a raw variable or a summarized
 #' dataset. \code{wroc} objects can be manipulated in a variety of ways,
 #' including manual and Optimal Gini bucketing.
 #'
@@ -86,6 +86,24 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
     info_type <- 'summarized'
   } else{
     stop("The labels must be either a vector of classes (numeric, character or factor) or a two-column matrix with the counts for each class.")
+  }
+
+  ix_na <- is.na(labels)
+  if(any(ix_na)){
+    labels <- labels[!ix_na]
+    predictions <- predictions[!ix_na]
+    warning(sprintf('%d labels are missing (NA) and will be ignored. Proceeding with %d observations.', sum(ix_na), sum(1-ix_na)))
+  }
+
+  ix_na <- is.na(predictions)
+  if(all(ix_na)){
+    special.values <- -9999999
+    predictions <- rep(special.values[1], length(predictions))
+    warning(sprintf('All the predictions are missing (NA) and will be replaced by the special value %d.', special.values[1]))
+  } else if(any(ix_na)){
+    special.values <- c(-9999999, special.values)
+    predictions[ix_na] <- special.values[1]
+    warning(sprintf('%d predictions are missing (NA) and will be replaced by the special value %d.', sum(ix_na), special.values[1]))
   }
 
 
@@ -361,7 +379,8 @@ c.wroc <- function(...){
 #' @export
 plot.wroc <- function(x,
                       type = c('accum','roc','trend','woe'),
-                      include.special = TRUE){
+                      include.special = TRUE,
+                      label.size = 3){
   require(ggplot2)
 
   if(type[1] == 'accum'){
@@ -408,7 +427,7 @@ plot.wroc <- function(x,
       geom_point(aes(y=norm_p_bad, color=pointcol)) +
       # geom_point(y=norm_p_bad, color='black', shape=1) +
       geom_text(aes(y = norm_p_bad, label=sprintf('%.2f %%',100*norm_p_bad)),
-                size = 2, vjust=-1) +
+                size = label.size, vjust=-1) +
       scale_color_identity() +
       scale_fill_identity() +
       scale_x_continuous(breaks=brks,labels=labls) +
@@ -440,7 +459,7 @@ plot.wroc <- function(x,
       geom_point(aes(y=norm_woe, color=pointcol)) +
       # geom_point(y=norm_p_bad, color='black', shape=1) +
       geom_text(aes(y = norm_woe, label=round(woe, 2)),
-                size = 2, vjust=-1) +
+                size = label.size, vjust=-1) +
       scale_color_identity() +
       scale_fill_identity() +
       scale_x_continuous(breaks=brks,labels=labls) +
