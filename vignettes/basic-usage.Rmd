@@ -86,7 +86,7 @@ ss <- summary(wrs)
 print(ss)
 ```
 
-You can also use the dedicated `plot` function to visualize the ROC curves in several ways. The types 'roc' and 'accum' (the default) show a ROC curve and an equivalent of the ROC curve using false negative rate versus true negative rate, respectively. The types 'trend' and 'woe' show the population in each bucket along with either the probability of being in the positive class ('trend') or the Weight of Evidence ($-log(p/(1-p))$).
+You can also use the dedicated `plot` function to visualize the ROC curves in several ways. The types 'roc' and 'accum' (the default) show a ROC curve and an equivalent of the ROC curve using false negative rate versus true negative rate, respectively. The types 'default' and 'woe' show the population in each bucket along with either the probability of being in the positive class ('default') or the Weight of Evidence ($-log(p/(1-p))$).
 
 ```{r, fig.width=7, fig.height=4}
 plot(wr)

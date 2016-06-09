@@ -3,6 +3,14 @@
 #' @export
 `%>%` <- dplyr::`%>%`
 
+# Convert integer columns in a data.frame to double
+intcols2double <- function(df){
+  cl <- class(df)
+  ix <- sapply(df, is.integer)
+  df[,ix] <- sapply(df[,ix], as.double)
+  df
+}
+
 # cut has a bug with frontier values sometimes
 cut_ <- function(x, breaks){
   breaks <- sort(unique(breaks))

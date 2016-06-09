@@ -75,6 +75,8 @@ wroc <- function(x, ...) UseMethod("wroc")
 #' @export
 wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad=1,
                          special.values = NULL){
+
+  # Check types
   if(!is.numeric(predictions)){
     warning("Predictions should be numeric. Coercing to numeric.")
     predictions <- as.numeric(predictions)
@@ -88,22 +90,35 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
     stop("The labels must be either a vector of classes (numeric, character or factor) or a two-column matrix with the counts for each class.")
   }
 
-  ix_na <- is.na(labels)
+  # Handle NAs in labels
+  if(info_type == 'long'){
+    ix_na <- is.na(labels)
+  } else if(info_type == 'summarized'){
+    ix_na <- apply(labels, 1, function(x) any(is.na(x)))
+  }
   if(any(ix_na)){
-    labels <- labels[!ix_na]
+    if(all(ix_na)){
+      stop('All the labels are missing (NA).')
+    }
     predictions <- predictions[!ix_na]
     warning(sprintf('%d labels are missing (NA) and will be ignored. Proceeding with %d observations.', sum(ix_na), sum(1-ix_na)))
   }
+  if(info_type == 'long'){
+    labels <- labels[!ix_na]
+  } else if(info_type == 'summarized'){
+    labels <- labels[!ix_na,]
+  }
 
+  # Handle NAs in predictions
   ix_na <- is.na(predictions)
   if(all(ix_na)){
     special.values <- -9999999
     predictions <- rep(special.values[1], length(predictions))
-    warning(sprintf('All the predictions are missing (NA) and will be replaced by the special value %d.', special.values[1]))
+    warning(sprintf('All the predictions are missing (NA) and will be replaced with the special value %d.', special.values[1]))
   } else if(any(ix_na)){
     special.values <- c(-9999999, special.values)
     predictions[ix_na] <- special.values[1]
-    warning(sprintf('%d predictions are missing (NA) and will be replaced by the special value %d.', sum(ix_na), special.values[1]))
+    warning(sprintf('%d predictions are missing (NA) and will be replaced with the special value %d.', sum(ix_na), special.values[1]))
   }
 
 
@@ -121,6 +136,7 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
     )
   } else{
     predictions <- predictions
+    labels <- as.matrix(labels)
     labels <- data.frame(
       n_bad = labels[,col.bad],
       n_good = labels[,which(!(1:2 %in% col.bad))]
@@ -167,7 +183,7 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
 
   # Initial grouping using qcut
   if(is.null(ngroups)){
-    warning('Using exact ROC curve. This may be very slow for continuous variables! Try using a smaller number for ngroups.')
+    message('Using exact ROC curve. This may be very slow for continuous variables! Try using a smaller number for ngroups.')
     regular$buckets <- factor(regular$predictions)
   } else{
     # regular$buckets <- as.numeric(cut2(regular$predictions, g = ngroups))
@@ -211,6 +227,7 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
            ac_bad = c(rep(NA, sum(ix)), cumsum(n_bad[!ix])),
            ac_good = c(rep(NA, sum(ix)), cumsum(n_good[!ix])),
            d_population = population/totals$population)
+
   # Special cases if there are no obs of a class
   if(totals$bad != 0){
     aux <- out$info$n_bad/totals$bad
@@ -226,7 +243,7 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
     out$info$d_bad <- aux
     out$info$d_good <- aux
   } else{
-    stop('There are no good or bads. Check your data.')
+    stop('There are no goods or bads. Check your data.')
   }
 
   # Special cases if there are only special values for goods, bads or population
@@ -280,7 +297,8 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
     }
   }
 
-  out$special <- out$info[ix,]
+  out$special <- out$info[ix,] %>% intcols2double # Homogenize numeric types to double (for comparison purposes)
+
   out$info <- out$info[!ix,] %>%
     rbind(0, .)
   out$info$upper_limit[1] <- -Inf
@@ -296,7 +314,9 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
   if(length(special_ix > 0) && all(special_ix)){
     # This is a dummy
     suppressWarnings(
-      out$info <- wroc.default(1:3, c(0,1,1))$info[c(1,1),]
+      suppressMessages(
+        out$info <- wroc.default(1:3, c(0,1,1))$info[c(1,1),]
+      )
     )
     out$info[2,c('bucket','upper_limit','d_ac_population','d_ac_bad','d_ac_good')] <- c(1, Inf, 1, 1, 1)
   }
@@ -362,23 +382,41 @@ c.wroc <- function(...){
   ar
 }
 
+#' @rdname wroc
+#' @export
+all.equal.wroc <- function(target, current, identical=FALSE){
+  if(!identical){
+    black.list <- 'call'
+    if(nrow(target$special) == 0 && nrow(current$special) == 0){
+      black.list <- c(black.list, 'special')
+    }
+    if(nrow(target$info) == 0 && nrow(current$info) == 0){
+      black.list <- c(black.list, 'info')
+    }
+    target <- target[!(names(target) %in% black.list)]
+    current <- current[!(names(current) %in% black.list)]
+  }
+  all.equal.list(target, current)
+}
+
+
 #' Plot ROC Curves
 #'
 #' Uses \code{ggplot2} to plot several interesting aspects about a ROC curve.
 #'
 #' @param x An object of class \code{wroc} or \code{wroc.list}.
 #' @param type One of 'accum' (ROC using fnr ~ tnr), 'roc' (standard ROC tpr ~
-#'   fpr), 'trend' (probability of being in the positive class) and 'woe'
+#'   fpr), 'default' (probability of being in the positive class) and 'woe'
 #'   (Weight of Evidence: log-odds of being in the *negative* class).
 #' @param include.special Should special values be included in the plot? Only
-#'   applies to 'trend' and 'woe' options
+#'   applies to 'default' and 'woe' options
 #' @return An object of class ggplot which can be then be modified if needed. If
 #'   \code{x} is a \code{wroc.list}, then a list of \code{ggplot} objects is
 #'   returned. Depending on the value of \code{save.pdf}, a PDF with the plots
 #'   is saved to \code{file} or the plots are shown one by one.
 #' @export
 plot.wroc <- function(x,
-                      type = c('accum','roc','trend','woe'),
+                      type = c('accum','roc','default','woe'),
                       include.special = TRUE,
                       label.size = 3){
   require(ggplot2)
@@ -405,7 +443,7 @@ plot.wroc <- function(x,
       scale_color_gradientn(colours = c('blue','green','yellow','red')) +
       labs(title='ROC Curve', x='fpr',y='tpr') +
       coord_equal()
-  } else if(type[1] == 'trend'){
+  } else if(type[1] == 'default'){
     ds <- x$info[-1,]
     if(include.special) ds <- rbind(x$special, ds)
     ds <- ds %>%

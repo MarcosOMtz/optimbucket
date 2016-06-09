@@ -33,7 +33,7 @@ c.wroc.list <- function(...){
 #' @param ... Additional options to pass on to \code{pdf()}
 #' @export
 plot.wroc.list <- function(x,
-                           type = c("accum", "roc", "trend", "woe"),
+                           type = c("accum", "roc", "default", "woe"),
                            include.special = TRUE,
                            save.pdf = FALSE,
                            file = 'Wroc Plots.pdf',
@@ -47,7 +47,7 @@ plot.wroc.list <- function(x,
   for(i in 1:length(x)){
     if(type[1] == 'accum') ti <- sprintf('Accumulation: %s', names(x)[i])
     else if(type[1] == 'roc') ti <- sprintf('ROC: %s', names(x)[i])
-    else if(type[1] == 'trend') ti <- sprintf('Default Rate: %s', names(x)[i])
+    else if(type[1] == 'default') ti <- sprintf('Default Rate: %s', names(x)[i])
     else if(type[1] == 'woe') ti <- sprintf('WoE: %s', names(x)[i])
     print(
       out[[names(x)[i]]] <- plot(x[[i]],
@@ -180,7 +180,7 @@ subset.wroc.list <- function(x, keep=NULL, drop=NULL){
 #' @export
 performance.wroc.list <- function(x, out.type = c('list', 'data.frame')){
   if(out.type[1] == 'data.frame'){
-    out <- rbind_all(lapply(1:length(x), function(i){
+    out <- dplyr::rbind_all(lapply(1:length(x), function(i){
       data.frame(var=names(x)[i], as.list(performance(x[[i]])), stringsAsFactors = F)
     }))
   } else if(out.type[1] == 'list'){
