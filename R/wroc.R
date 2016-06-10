@@ -854,7 +854,7 @@ predict.wroc  <- function(object,
     )
   )
   yhat <- data.frame(id=out) %>%
-    left_join(vals, by='id') %>%
+    dplyr::left_join(vals, by='id') %>%
     .$type
   yhat
 }
