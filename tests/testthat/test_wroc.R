@@ -70,6 +70,17 @@ test_that('wroc can handle all sorts of predictions', {
   expect_warning(wroc(predictions=d$x_all_na, labels=d$y, ngroups = 50), 'NA|predictions|All|all')
 })
 
+test_that("wroc's simple methods work",{
+  d <- generate_sample_data(10000, 1000)
+  w <- wroc(predictions=d$x_spec, labels=d$y, ngroups = 50,
+            special.values = c(-999, -998))
+
+  expect_null(print(w))
+  expect_is(c(a=w, b=w), 'wroc.list')
+  expect_warning(c(a=w, w), 'name')
+
+  ### SUBSET
+})
 # Grouped mode
 sum_data <- function(dat, x, y, sp=NULL, output.wroc=T){
   x <- substitute(x)
@@ -177,6 +188,15 @@ test_that('plot.wroc works', {
 })
 
 # Summary
+test_that('summary.wroc works', {
+  d <- generate_sample_data(10000, 1000)
+  w <- wroc(predictions=d$x_spec, labels=d$y, ngroups = 50,
+            special.values = c(-999, -998))
+  expect_is(summary(w, performance = T), 'summary.wroc')
+  expect_is(summary(w, performance = F), 'summary.wroc')
+  expect_null(print(summary(w)))
+})
+
 
 # Analyze
 
