@@ -443,7 +443,10 @@ plot.wroc <- function(x,
       scale_color_gradientn(colours = c('blue','green','yellow','red')) +
       labs(title='ROC Curve', x='fpr',y='tpr') +
       coord_equal()
-  } else if(type[1] == 'default'){
+  } else if(type[1] == 'default' || type[1] == 'trend'){
+    if(type[1] == 'trend'){
+      message('type = "trend" will be deprecated in future versions. Use "default" instead')
+    }
     ds <- x$info[-1,]
     if(include.special) ds <- rbind(x$special, ds)
     ds <- ds %>%
@@ -464,7 +467,7 @@ plot.wroc <- function(x,
       geom_line(aes(y=norm_p_bad, color='black', group=pointcol)) +
       geom_point(aes(y=norm_p_bad, color=pointcol)) +
       # geom_point(y=norm_p_bad, color='black', shape=1) +
-      geom_text(aes(y = norm_p_bad, label=sprintf('%.2f %%',100*norm_p_bad)),
+      geom_text(aes(y = norm_p_bad, label=sprintf('%.2f %%',100*p_bad)),
                 size = label.size, vjust=-1) +
       scale_color_identity() +
       scale_fill_identity() +
