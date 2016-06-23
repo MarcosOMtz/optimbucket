@@ -375,8 +375,13 @@ print.wroc <- function(x){
 #' @export
 c.wroc <- function(...){
   ar <- list(...)
-  if(is.null(names(ar))){
-    stop('The arguments to c.wroc must be named and the names must coincide with the names of the variables used to construct the wroc objects.')
+  if(is.null(names(ar)) || any(names(ar) == '')){
+    warning('The arguments to c.wroc must be named and the names must coincide with the names of the variables used to construct the wroc objects, like this: c(var1=wroc1, var2=wroc2). Choosing automatic names...')
+    if(is.null(names(ar))){
+      names(ar) <- paste0('var', 1:length(ar))
+    } else{
+      names(ar) <- ifelse(names(ar) == '', paste0('var', 1:length(ar)), names(ar))
+    }
   }
   class(ar) <- c('wroc.list', 'list')
   ar
@@ -419,7 +424,6 @@ plot.wroc <- function(x,
                       type = c('accum','roc','default','woe'),
                       include.special = TRUE,
                       label.size = 3){
-  require(ggplot2)
 
   if(type[1] == 'accum'){
     p <- x$info %>%
@@ -662,7 +666,13 @@ optimize_magic_ <- function(x, trend = c('auto','upper','lower'), min_p_pob=0.5)
     dx <- ds$d_ac_good[(i+1):nrow(ds)] - ds$d_ac_good[i]
     dy <- ds$d_ac_bad[(i+1):nrow(ds)] - ds$d_ac_bad[i]
     slopes <- ifelse(dx == 0, Inf, dy/dx)
-    or <- order(slopes, decreasing = decreasing)
+    # This guarantees that the rightmost bucket tied for the maximum slope gets chosen instead of the first one found by `order()`. This solves problems when the ROC curve has flat or vertical portions
+    if(decreasing){
+      greedy_order <- 1:length(slopes)
+    } else{
+      greedy_order <- length(slopes):1
+    }
+    or <- order(slopes, greedy_order, decreasing = decreasing)
     len <- length(or)
     for(k in 1:len){
       j <- or[k]
@@ -999,6 +1009,7 @@ print.summary.wroc <- function(object, extended = FALSE, ...){
     cat('\n\nDetails:\n\n')
     print(object$info)
   }
+  return(NULL)
 }
 
 

@@ -40,7 +40,7 @@ generate_sample_data <- function(ng=10000, nb=1000){
   d
 }
 
-generate_sample_data(10,5)
+# generate_sample_data(10,5)
 
 # wroc
 
