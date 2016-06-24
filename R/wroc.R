@@ -643,7 +643,7 @@ optimize_optimal_ <- function(x, trend = c('auto','upper','lower')){
   out$trend <- trend
   out$call.optimize <- match.call()
 
-  class(out) <- c('optimal.wroc', 'wroc')
+  class(out) <- c(class(x), 'optimal.wroc')
   out
 }
 
@@ -695,7 +695,7 @@ optimize_magic_ <- function(x, trend = c('auto','upper','lower'), min_p_pob=0.5)
   out$trend <- trend
   out$call.optimize <- match.call()
 
-  class(out) <- c('magic.wroc', 'wroc')
+  class(out) <- c(class(x), 'magic.wroc')
   out
 }
 
@@ -926,10 +926,14 @@ subset.wroc <- function(x, buckets = NULL, ...){
   out$info$bucket <- c(0, ds$bucket[-ix])
   out$info$lower_limit <- c(-Inf, ds$lower_limit[-(ix+1)])
   out$info$upper_limit <- c(-Inf, ds$upper_limit[-(ix)])
+  if('points.wroc' %in% class(x)){
+    out$info$points <- x$info$points[-ix]
+    out$point.transform <- x$point.transform
+  }
   ### out$ngroups <- nrow(out$info) - 1
   out$call.subset <- match.call()
   out$pasted.buckets <- buckets
-  class(out) <- c('subset.wroc', class(out))
+  class(out) <- c(class(x), 'subset.wroc')
   out
 }
 
@@ -962,21 +966,35 @@ summary.wroc <- function(object, performance = TRUE, ...){
 
   out$info <- rbind(
       spvals,
-      cbind(data.frame(type='normal', stringsAsFactors = F), object$info[-1,])
+      cbind(
+        data.frame(type='normal', stringsAsFactors = F),
+        object$info[-1,]
+      )
     ) %>%
     dplyr::mutate(range = ifelse(row_number() < n(),
-                          sprintf('(%.2f, %.2f]', lower_limit, upper_limit),
-                          sprintf('(%.2f, %.2f)', lower_limit, upper_limit))) %>%
+                          sprintf('(%.2f, %.2f]',
+                                  lower_limit,
+                                  upper_limit),
+                          sprintf('(%.2f, %.2f)',
+                                  lower_limit,
+                                  upper_limit))) %>%
     dplyr::select(bucket, type, lower_limit, upper_limit, range,
                   n_good, n_bad, population, d_good, d_bad, d_population,
                   d_ac_good, d_ac_bad, d_ac_population, p_bad, woe) %>%
     dplyr::as.tbl()
+  if('points.wroc' %in% class(object)){
+    out$info$points <- c(object$special$points, object$info$points[-1])
+    out$point.transform <- object$point.transform
+    extra.class <- 'summary.points.wroc'
+  } else{
+    extra.class <- NULL
+  }
   if(performance){
     out <- c(out, performance.wroc(object))
   }
   out$performance <- performance
   out$totals <- object$totals
-  class(out) <- c('summary.wroc')
+  class(out) <- c('summary.wroc', extra.class)
   out
 }
 
@@ -988,7 +1006,7 @@ print.summary.wroc <- function(object, extended = FALSE, ...){
   special <- dplyr::filter(object$info, type == 'special')
   tot <- object$totals
   out <- sprintf(
-    'Regular Buckets: %d\nSpecial Buckets: %d\nTotal Population: %d\nSpecial Population: %d (%.2f%%)\nSmallest bucket Pop.: %d (%.2f%%)',
+    'Regular Buckets: %d\nSpecial Buckets: %d\nTotal Population: %d\nSpecial Population: %d (%.2f%%)\nSmallest Bucket Pop.: %d (%.2f%%)',
     nrow(regular), nrow(special),
     tot$population,
     tot$spec_population,
@@ -996,6 +1014,16 @@ print.summary.wroc <- function(object, extended = FALSE, ...){
     min(regular$population),
     100*min(regular$d_population)
   )
+
+  if('summary.points.wroc' %in% class(object)){
+    out <- sprintf(
+      '%s\n\nPoint Transformation: Base Odds are 1:%d @ %d Base Points with %d PDO',
+      out,
+      1/object$point.transform$base.odds,
+      object$point.transform$base.points,
+      object$point.transform$pdo
+    )
+  }
 
   if(object$performance){
     out <- sprintf(
@@ -1094,6 +1122,71 @@ copy.summary.wroc.list <-  function(x, export=FALSE, ...){
 
 
 
+
+#' Transformation to Points
+#'
+#' Given a wroc.list and a logistic regression object, calculates the points for
+#' each level of each variable and yields a list of points.wroc object, which
+#' are simpli wrocs with point information.
+#' @export
+points.wroc.list <- function(x,
+                             model,
+                             base.points = 600,
+                             base.odds = 1/20,
+                             pdo = 15,
+                             point.decimals = 0,
+                             reoptimize = TRUE,
+                             prefix.to.remove = 'woe_'){
+  if(!('glm' %in% class(model))){
+    stop('model must be an object of class glm.')
+  }
+  vars_woe <- names(coefficients(model))[-1]
+  vars <- gsub(prefix.to.remove, '', vars_woe)
+  nvar <- length(vars)
+  x <- x[vars]
+  fac <- -pdo/log(2) # a
+  offset <- base.points + (pdo*log(base.odds))/log(2) # b
+  point.transform <- list(
+    base.points = base.points,
+    base.odds = base.odds,
+    pdo = pdo,
+    fac = fac,
+    offset = offset
+  )
+  for(j in 1:nvar){
+    x[[j]]$point.transform <- point.transform
+    beta <- coefficients(model)[vars_woe[j]]
+    woe <- x[[j]]$info$woe
+    x[[j]]$info$points <- round(fac*beta*woe + offset/nvar, point.decimals)
+    woe_sp <- x[[j]]$special$woe
+    x[[j]]$special$points <- round(fac*beta*woe_sp + offset/nvar, point.decimals)
+    class(x[[j]]) <- c(class(x[[j]]), 'points.wroc')
+    if(reoptimize){
+      p <- x[[j]]$info$points
+      ix <- (p == lead(p))
+      ix[is.na(ix)] <- FALSE
+      ix[1] <- FALSE
+      bucks <- x[[j]]$info$bucket[ix]
+      x[[j]] <- reset.buckets(subset(x[[j]], buckets = bucks))
+    }
+  }
+  class(x) <- c(class(x), 'points.wroc.list')
+  x
+}
+
+
+
+# d <- generate_sample_data(1000,50)
+# head(d)
+# ows <- optimize(wroc(y ~ x + x_factor2 + x_spec, data=d, ngroups = 10,
+#                      special.values = c(-999,-998)))
+# d <- predict(ows, newdata = d, type = 'woe', keep.data = T)
+# m <- glm(y ~ woe_x + woe_x_spec, data=d, family=binomial)
+# summary(m)
+#
+# p <- points(ows, m, reoptimize = T)
+# p2 <- subset(p$x_spec, buckets = c(522,574,627,677))
+# p2
 
 
 
