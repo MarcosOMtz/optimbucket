@@ -1,14 +1,14 @@
 
-require(dplyr)
-require(tidyr)
-require(ggplot2)
+# require(dplyr)
+# require(tidyr)
+# require(ggplot2)
 require(testthat)
-require(optimbucket)
+# require(optimbucket)
 set.seed(1234)
 
 
 generate_sample_data <- function(ng=10000, nb=1000){
-
+  require(dplyr)
   goods <- data.frame(
     x = rnorm(ng, mean = ifelse(runif(ng) > 0.2, -2, 1)),
     y = 0
@@ -202,5 +202,6 @@ test_that('summary.wroc works', {
 
 # Optimize
 
+# Points
 
 

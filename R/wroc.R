@@ -425,6 +425,7 @@ plot.wroc <- function(x,
                       include.special = TRUE,
                       label.size = 3){
 
+  require(ggplot2)
   if(type[1] == 'accum'){
     p <- x$info %>%
       ggplot(aes(d_ac_good, d_ac_bad, color=bucket)) +
@@ -470,7 +471,7 @@ plot.wroc <- function(x,
       geom_bar(aes(y=d_population, fill=barcol), stat='identity') +
       geom_line(aes(y=norm_p_bad, color='black', group=pointcol)) +
       geom_point(aes(y=norm_p_bad, color=pointcol)) +
-      # geom_point(y=norm_p_bad, color='black', shape=1) +
+      geom_point(aes(y=norm_p_bad), color='black', shape=1) +
       geom_text(aes(y = norm_p_bad, label=sprintf('%.2f %%',100*p_bad)),
                 size = label.size, vjust=-1) +
       scale_color_identity() +
@@ -487,7 +488,7 @@ plot.wroc <- function(x,
     if(include.special) ds <- rbind(x$special, ds)
     ds <- ds %>%
       dplyr::mutate(barcol = ifelse(bucket < 0, 'salmon', 'darkgrey'),
-             pointcol = ifelse(bucket < 0, 'salmon', 'black'))
+                    pointcol = ifelse(bucket < 0, 'salmon', 'black'))
     brks <- 1:nrow(ds)
     labls <- sprintf('B%d: (%.2f, %.2f]',
                      ds$bucket,
@@ -502,7 +503,7 @@ plot.wroc <- function(x,
       geom_bar(aes(y=d_population, fill=barcol), stat='identity') +
       geom_line(aes(y=norm_woe, color='black', group=pointcol)) +
       geom_point(aes(y=norm_woe, color=pointcol)) +
-      # geom_point(y=norm_p_bad, color='black', shape=1) +
+      geom_point(aes(y=norm_woe), color='black', shape=1) +
       geom_text(aes(y = norm_woe, label=round(woe, 2)),
                 size = label.size, vjust=-1) +
       scale_color_identity() +
@@ -513,6 +514,41 @@ plot.wroc <- function(x,
       labs(title = 'Weight of Evidence',
            x = 'Bucket',
            y = '% Population')
+  } else if(type[1] == 'points'){
+    if('points.wroc' %in% class(x)){
+      ds <- x$info[-1,]
+      if(include.special) ds <- rbind(x$special, ds)
+      ds <- ds %>%
+        dplyr::mutate(barcol = ifelse(bucket < 0, 'salmon', 'darkgrey'),
+                      pointcol = ifelse(bucket < 0, 'salmon', 'black'))
+      brks <- 1:nrow(ds)
+      labls <- sprintf('B%d: (%.2f, %.2f]',
+                       ds$bucket,
+                       ds$lower_limit,
+                       ds$upper_limit)
+      if(include.special) labls[1:nrow(x$special)] <- gsub('\\(','[',labls[1:nrow(x$special)])
+      labls[length(labls)] <- gsub(']',')',labls[length(labls)])
+      p <- ds %>%
+        dplyr::mutate(i = row_number(),
+                      norm_points = points*max(d_population)/max(points)) %>%
+        ggplot(aes(i)) +
+        geom_bar(aes(y=d_population, fill=barcol), stat='identity') +
+        geom_line(aes(y=norm_points, color='black', group=pointcol)) +
+        geom_point(aes(y=norm_points, color=pointcol)) +
+        geom_point(aes(y=norm_points), color='black', shape=1) +
+        geom_text(aes(y = norm_points, label=round(points, 2)),
+                  size = label.size, vjust=-1) +
+        scale_color_identity() +
+        scale_fill_identity() +
+        scale_x_continuous(breaks=brks,labels=labls) +
+        scale_y_continuous(labels = scales::percent) +
+        theme(axis.text.x = element_text(angle=90)) +
+        labs(title = 'Points',
+             x = 'Bucket',
+             y = '% Population')
+    } else{
+      stop('Plot type "points" is only available for objects of class "points.wroc"')
+    }
   }
   p
 }
@@ -927,7 +963,7 @@ subset.wroc <- function(x, buckets = NULL, ...){
   out$info$lower_limit <- c(-Inf, ds$lower_limit[-(ix+1)])
   out$info$upper_limit <- c(-Inf, ds$upper_limit[-(ix)])
   if('points.wroc' %in% class(x)){
-    out$info$points <- x$info$points[-ix]
+    out$info$points <- x$info$points[-(ix+1)] # +1 because ix was on ds = x$info[-1,]
     out$point.transform <- x$point.transform
   }
   ### out$ngroups <- nrow(out$info) - 1
@@ -1126,8 +1162,24 @@ copy.summary.wroc.list <-  function(x, export=FALSE, ...){
 #' Transformation to Points
 #'
 #' Given a wroc.list and a logistic regression object, calculates the points for
-#' each level of each variable and yields a list of points.wroc object, which
-#' are simpli wrocs with point information.
+#' each level of each variable and yields a list of points.wroc object.
+#'
+#' @param x An object of class \code{wroc.list}
+#' @param model An object of class \code{glm}. Note that the variables used must
+#'   be included in \code{x}
+#' @param base.points Points to be given at \code{base.odds}
+#' @param pdo Points to double the odds
+#' @param point.decimals Precision parameter for the points
+#' @param reoptimize Should buckets with less than \code{reoptimize.point.tol}
+#'   steps be pasted together?
+#' @param reoptimize.point.tol See \code{reoptimize}. If \code{reoptimize =
+#'   FALSE}, this does nothing
+#' @param prefix.to.remove The prefix to remove from the \code{glm}'s variable
+#'   names (since usually the \code{wroc} objects have var1, var2, ... but the
+#'   glm will have woe_var1, woe_var2, ...)
+#' @return An object of class \code{points.wroc} (apart from its other classes)
+#'   which contains a \code{points} variable in its \code{info} component and a
+#'   \code{point.transform} component containing all the relevant parameters.
 #' @export
 points.wroc.list <- function(x,
                              model,
@@ -1136,6 +1188,7 @@ points.wroc.list <- function(x,
                              pdo = 15,
                              point.decimals = 0,
                              reoptimize = TRUE,
+                             reoptimize.point.tol = 0,
                              prefix.to.remove = 'woe_'){
   if(!('glm' %in% class(model))){
     stop('model must be an object of class glm.')
@@ -1163,11 +1216,13 @@ points.wroc.list <- function(x,
     class(x[[j]]) <- c(class(x[[j]]), 'points.wroc')
     if(reoptimize){
       p <- x[[j]]$info$points
-      ix <- (p == lead(p))
+      ix <- (abs(p - lead(p)) <= reoptimize.point.tol)
       ix[is.na(ix)] <- FALSE
       ix[1] <- FALSE
       bucks <- x[[j]]$info$bucket[ix]
       x[[j]] <- reset.buckets(subset(x[[j]], buckets = bucks))
+      woe <- x[[j]]$info$woe
+      x[[j]]$info$points <- round(fac*beta*woe + offset/nvar, point.decimals)
     }
   }
   class(x) <- c(class(x), 'points.wroc.list')
@@ -1176,17 +1231,7 @@ points.wroc.list <- function(x,
 
 
 
-# d <- generate_sample_data(1000,50)
-# head(d)
-# ows <- optimize(wroc(y ~ x + x_factor2 + x_spec, data=d, ngroups = 10,
-#                      special.values = c(-999,-998)))
-# d <- predict(ows, newdata = d, type = 'woe', keep.data = T)
-# m <- glm(y ~ woe_x + woe_x_spec, data=d, family=binomial)
-# summary(m)
-#
-# p <- points(ows, m, reoptimize = T)
-# p2 <- subset(p$x_spec, buckets = c(522,574,627,677))
-# p2
+
 
 
 
