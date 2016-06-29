@@ -1133,7 +1133,7 @@ copy.wroc.list <- function(x, export=FALSE, ...){
           summary(x[[i]])$info,
           stringsAsFactors = F)
   }) %>%
-    rbind_all
+    dplyr::rbind_all
   temp$lower_limit <- gsub('-Inf', 'minus Inf', as.character(temp$lower_limit))
   if(export){
     write.table(temp, row.names = F, file = file, ...)
