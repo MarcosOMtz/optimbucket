@@ -26,10 +26,10 @@ performance.wroc.info_ <- function(ds, trend = c('upper','lower')){
            dx_skip = dplyr::lead(d_ac_good) - dplyr::lag(d_ac_good),
            bases_gini_raw = pmax(sign_trend*(d_ac_bad - d_ac_good), 0),
            bases_gini = bases_gini_raw + lag(bases_gini_raw),
-           bases_gini_skip = lead(bases_gini_raw) + lag(bases_gini_raw),
+           bases_gini_skip = dplyr::lead(bases_gini_raw) + lag(bases_gini_raw),
            area_gini = bases_gini*dx/2,
            area_gini_skip = bases_gini_skip*dx_skip/2,
-           delta_area = area_gini + lead(area_gini)- area_gini_skip)
+           delta_area = area_gini + dplyr::lead(area_gini)- area_gini_skip)
 
   tr
 }
@@ -1093,7 +1093,7 @@ copy <- function(x, ...) UseMethod("copy")
 
 #' @rdname copy
 #' @export
-copy.wroc <- function(x, variables=NULL, export=FALSE, ...){
+copy.wroc <- function(x, variables=NULL, return.value = FALSE, export=FALSE, ...){
   ellipsis <- list(...)
   if(export){
     if(is.null(ellipsis$file)){
@@ -1115,11 +1115,16 @@ copy.wroc <- function(x, variables=NULL, export=FALSE, ...){
   } else{
     write.table(temp, file = file, sep = '\t', row.names = F, ...)
   }
+  if(return.value){
+    return(temp)
+  } else{
+    return(NULL)
+  }
 }
 
 #' @rdname copy
 #' @export
-copy.wroc.list <- function(x, variables, export=FALSE, ...){
+copy.wroc.list <- function(x, variables, return.value = FALSE, export=FALSE, ...){
   ellipsis <- list(...)
   if(export){
     if(is.null(ellipsis$file)){
@@ -1145,6 +1150,11 @@ copy.wroc.list <- function(x, variables, export=FALSE, ...){
     write.table(temp, row.names = F, file = file, ...)
   } else{
     write.table(temp, row.names = F, file = file, sep = '\t', ...)
+  }
+  if(return.value){
+    return(temp)
+  } else{
+    return(NULL)
   }
 }
 
@@ -1222,7 +1232,7 @@ points.wroc.list <- function(x,
     class(x[[j]]) <- c(class(x[[j]]), 'points.wroc')
     if(reoptimize){
       p <- x[[j]]$info$points
-      ix <- (abs(p - lead(p)) <= reoptimize.point.tol)
+      ix <- (abs(p - dplyr::lead(p)) <= reoptimize.point.tol)
       ix[is.na(ix)] <- FALSE
       ix[1] <- FALSE
       bucks <- x[[j]]$info$bucket[ix]
