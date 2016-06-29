@@ -1093,7 +1093,7 @@ copy <- function(x, ...) UseMethod("copy")
 
 #' @rdname copy
 #' @export
-copy.wroc <- function(x, export=FALSE, ...){
+copy.wroc <- function(x, variables=NULL, export=FALSE, ...){
   ellipsis <- list(...)
   if(export){
     if(is.null(ellipsis$file)){
@@ -1107,6 +1107,9 @@ copy.wroc <- function(x, export=FALSE, ...){
 
   temp <- summary(x)$info
   temp$lower_limit <- gsub('-Inf', 'minus Inf', as.character(temp$lower_limit))
+  if(!is.null(variables)){
+    temp <- temp[variables]
+  }
   if(export){
     write.table(temp, row.names = F, file = file, ...)
   } else{
@@ -1116,7 +1119,7 @@ copy.wroc <- function(x, export=FALSE, ...){
 
 #' @rdname copy
 #' @export
-copy.wroc.list <- function(x, export=FALSE, ...){
+copy.wroc.list <- function(x, variables, export=FALSE, ...){
   ellipsis <- list(...)
   if(export){
     if(is.null(ellipsis$file)){
@@ -1135,6 +1138,9 @@ copy.wroc.list <- function(x, export=FALSE, ...){
   }))
 
   temp$lower_limit <- gsub('-Inf', 'minus Inf', as.character(temp$lower_limit))
+  if(!is.null(variables)){
+    temp <- temp[variables]
+  }
   if(export){
     write.table(temp, row.names = F, file = file, ...)
   } else{
