@@ -1215,6 +1215,7 @@ points.wroc.list <- function(x,
   x <- x[vars]
   fac <- -pdo/log(2) # a
   offset <- base.points + (pdo*log(base.odds))/log(2) # b
+  beta0 <- coefficients(model)[1] # Intercepto
   point.transform <- list(
     base.points = base.points,
     base.odds = base.odds,
@@ -1226,9 +1227,9 @@ points.wroc.list <- function(x,
     x[[j]]$point.transform <- point.transform
     beta <- coefficients(model)[vars_woe[j]]
     woe <- x[[j]]$info$woe
-    x[[j]]$info$points <- round(fac*beta*woe + offset/nvar, point.decimals)
+    x[[j]]$info$points <- round(fac*(beta*woe + beta0/nvar) + offset/nvar, point.decimals)
     woe_sp <- x[[j]]$special$woe
-    x[[j]]$special$points <- round(fac*beta*woe_sp + offset/nvar, point.decimals)
+    x[[j]]$special$points <- round(fac*(beta*woe_sp + beta0/nvar) + offset/nvar, point.decimals)
     class(x[[j]]) <- c(class(x[[j]]), 'points.wroc')
     if(reoptimize){
       p <- x[[j]]$info$points
@@ -1238,7 +1239,7 @@ points.wroc.list <- function(x,
       bucks <- x[[j]]$info$bucket[ix]
       x[[j]] <- reset.buckets(subset(x[[j]], buckets = bucks))
       woe <- x[[j]]$info$woe
-      x[[j]]$info$points <- round(fac*beta*woe + offset/nvar, point.decimals)
+      x[[j]]$info$points <- round(fac*(beta*woe + beta0/nvar) + offset/nvar, point.decimals)
     }
   }
   class(x) <- c(class(x), 'points.wroc.list')
