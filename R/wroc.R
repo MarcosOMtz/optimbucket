@@ -277,25 +277,10 @@ wroc.default <- function(predictions, labels, ngroups=NULL, level.bad=1, col.bad
   }
 
   # Weight of Evidence
-  out$info$woe <- ifelse(out$info$p_bad == 0 | out$info$p_good == 0,
-                         NA,
-                         log(out$info$p_good/out$info$p_bad))
-
-  if(any(is.na(out$info$woe))){
-    if(all(is.na(out$info$woe))){
-      warning('All buckets have observations of a single class. Replacing WoE with +5 if there are only goods and -5 if there are only bads.')
-      out$info <- out$info %>%
-        dplyr::mutate(woe = ifelse(p_bad == 0, 5, -5))
-    } else{
-      warning('Some buckets have observations of a single class. Replacing WoE with twice the maximum / minimum WoE among other buckets.')
-    out$info <- out$info %>%
-      dplyr::mutate(woe = ifelse(is.na(woe),
-                          ifelse(p_bad == 0,
-                                 2*max(woe, na.rm = T),
-                                 2*min(woe, na.rm = T)),
-                          woe))
-    }
-  }
+  out$info$woe <- woe(n_good=out$info$n_good,
+                      n_bad=out$info$n_bad,
+                      na.factor = 2,
+                      extremum.woe = 5)
 
   out$special <- out$info[ix,] %>% intcols2double # Homogenize numeric types to double (for comparison purposes)
 
@@ -458,11 +443,13 @@ plot.wroc <- function(x,
       dplyr::mutate(barcol = ifelse(bucket < 0, 'salmon', 'darkgrey'),
              pointcol = ifelse(bucket < 0, 'salmon', 'black'))
     brks <- 1:nrow(ds)
-    labls <- sprintf('B%d: (%.2f, %.2f]',
-                     ds$bucket,
-                     ds$lower_limit,
-                     ds$upper_limit)
-    if(include.special) labls[1:nrow(x$special)] <- gsub('\\(','[',labls[1:nrow(x$special)])
+    labls <- ifelse(ds$bucket < 0,
+                    sprintf('B%d: %.2f', ds$bucket, ds$lower_limit),
+                    sprintf('B%d: (%.2f, %.2f]',
+                            ds$bucket,
+                            ds$lower_limit,
+                            ds$upper_limit))
+
     labls[length(labls)] <- gsub(']',')',labls[length(labls)])
     p <- ds %>%
       dplyr::mutate(i = row_number(),
@@ -490,11 +477,12 @@ plot.wroc <- function(x,
       dplyr::mutate(barcol = ifelse(bucket < 0, 'salmon', 'darkgrey'),
                     pointcol = ifelse(bucket < 0, 'salmon', 'black'))
     brks <- 1:nrow(ds)
-    labls <- sprintf('B%d: (%.2f, %.2f]',
-                     ds$bucket,
-                     ds$lower_limit,
-                     ds$upper_limit)
-    if(include.special) labls[1:nrow(x$special)] <- gsub('\\(','[',labls[1:nrow(x$special)])
+    labls <- ifelse(ds$bucket < 0,
+                    sprintf('B%d: %.2f', ds$bucket, ds$lower_limit),
+                    sprintf('B%d: (%.2f, %.2f]',
+                            ds$bucket,
+                            ds$lower_limit,
+                            ds$upper_limit))
     labls[length(labls)] <- gsub(']',')',labls[length(labls)])
     p <- ds %>%
       dplyr::mutate(i = row_number(),
@@ -991,7 +979,7 @@ subset.wroc <- function(x, buckets = NULL, ...){
 #'   individual summaries and a table showing the most important information
 #'   about them in a compact way.
 #' @export
-summary.wroc <- function(object, performance = TRUE, ...){
+summary.wroc <- function(object, performance = TRUE, range.precision = 3, ...){
   out <- list()
   if(object$nspecial > 0){
     spvals <- cbind(data.frame(type='special', stringsAsFactors = F),
@@ -1000,6 +988,9 @@ summary.wroc <- function(object, performance = TRUE, ...){
     spvals <- NULL
   }
 
+  fmt1 <- sprintf('(%%.%df, %%.%df]', range.precision, range.precision)
+  fmt2 <- sprintf('(%%.%df, %%.%df)', range.precision, range.precision)
+
   out$info <- rbind(
       spvals,
       cbind(
@@ -1007,13 +998,16 @@ summary.wroc <- function(object, performance = TRUE, ...){
         object$info[-1,]
       )
     ) %>%
-    dplyr::mutate(range = ifelse(row_number() < n(),
-                          sprintf('(%.2f, %.2f]',
-                                  lower_limit,
-                                  upper_limit),
-                          sprintf('(%.2f, %.2f)',
-                                  lower_limit,
-                                  upper_limit))) %>%
+    dplyr::mutate(range = ifelse(type == 'normal',
+                                 ifelse(row_number() < n(),
+                                        sprintf(fmt1,
+                                                lower_limit,
+                                                upper_limit),
+                                        sprintf(fmt2,
+                                                lower_limit,
+                                                upper_limit)),
+                                 lower_limit)
+    ) %>%
     dplyr::select(bucket, type, lower_limit, upper_limit, range,
                   n_good, n_bad, population, d_good, d_bad, d_population,
                   d_ac_good, d_ac_bad, d_ac_population, p_bad, woe) %>%

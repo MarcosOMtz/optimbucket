@@ -205,7 +205,7 @@ performance.wroc.list <- function(x, out.type = c('list', 'data.frame')){
 summary.wroc.list <- function(x, performance = T, ...){
   out <- list()
   out$summaries <- lapply(x, function(y){
-    summary(y, performance)
+    summary(y, performance, ...)
   })
   variable <- names(out$summaries)
   tot_pop <- sapply(out$summaries, function(y) y$totals$population)

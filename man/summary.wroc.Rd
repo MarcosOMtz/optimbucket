@@ -7,7 +7,7 @@
 \alias{summary.wroc.list}
 \title{Important Information About ROC Curves}
 \usage{
-\method{summary}{wroc}(object, performance = TRUE, ...)
+\method{summary}{wroc}(object, performance = TRUE, range.precision = 3, ...)
 
 \method{print}{summary.wroc}(object, extended = FALSE, ...)
 

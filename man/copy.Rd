@@ -9,9 +9,11 @@
 \usage{
 copy(x, ...)
 
-\method{copy}{wroc}(x, export = FALSE, ...)
+\method{copy}{wroc}(x, variables = NULL, return.value = FALSE,
+  export = FALSE, ...)
 
-\method{copy}{wroc.list}(x, export = FALSE, ...)
+\method{copy}{wroc.list}(x, variables, return.value = FALSE, export = FALSE,
+  ...)
 
 \method{copy}{summary.wroc.list}(x, export = FALSE, ...)
 }
