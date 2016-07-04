@@ -1,3 +1,21 @@
+
+#' @rdname points.wroc.list
+#' @export
+point_transform <- function(point.transform, woe, var=NULL){
+  pt <- point.transform
+  if(is.numeric(var)){
+    j <- var
+  } else{
+    j <- which(var == names(pt$beta))
+  }
+  if(is.null(var)){ # WoE of score to points
+    pts <- pt$fac*woe + pt$offset
+  } else{ # WoE of a single variable to points
+    pts <- pt$fac*(pt$beta[j]*woe + pt$beta0/pt$nvar) + pt$offset/pt$nvar
+  }
+  round(pts, pt$point.decimals)
+}
+
 #' Calculate Weight of Evidence
 #'
 #' Calculates the Weight of Evidence, namely \code{log((n_good/Population)/(n_bad/Population))}, while handling special cases (either no goods, no bads or both). If all the buckets are special, the value defaults to \code{abs(extremum.woe)} if there are only goods, \code{-abs(extremum.woe)} if there are only goods and 0 if there are neither. If only a few buckets have no goods or bads, then the values default to \code{na.factor} times the smallest (if no goods) or highest present WoE(if no bads).

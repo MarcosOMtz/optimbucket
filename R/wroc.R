@@ -953,7 +953,6 @@ subset.wroc <- function(x, buckets = NULL, ...){
   if('points.wroc' %in% class(x)){
     out$info$points <- x$info$points[-(ix+1)] # +1 because ix was on ds = x$info[-1,]
     out$point.transform <- x$point.transform
-    out$point.transform.func <- x$point.transform.func
   }
   ### out$ngroups <- nrow(out$info) - 1
   out$call.subset <- match.call()
@@ -1219,32 +1218,17 @@ points.wroc.list <- function(x,
     offset = offset,
     nvar = nvar,
     beta0 = coefficients(model)[1],
-    beta = coefficients(model)[-1]
+    beta = coefficients(model)[-1],
+    point.decimals = point.decimals
   )
-  aux_gen <- function(pt){
-    function(woe, variable=NULL){
-      if(is.numeric(variable)){
-        j <- variable
-      } else{
-        j <- which(variable == names(pt$beta))
-      }
-      if(is.null(variable)){ # WoE of score to points
-        pts <- pt$fac*woe + pt$offset
-      } else{ # WoE of a single variable to points
-        pts <- pt$fac*(pt$beta[j]*woe + pt$beta0/pt$nvar) + pt$offset/pt$nvar
-      }
-      pts
-    }
-  }
-  point.transform.func <- aux_gen(point.transform)
+
   for(j in 1:nvar){
     x[[j]]$point.transform <- point.transform
-    x[[j]]$point.transform.func <- point.transform.func
     beta <- coefficients(model)[vars_woe[j]]
     woe <- x[[j]]$info$woe
-    x[[j]]$info$points <- round(point.transform.func(woe, j), point.decimals)
+    x[[j]]$info$points <- point_transform(point.transform, woe, j)
     woe_sp <- x[[j]]$special$woe
-    x[[j]]$special$points <- round(point.transform.func(woe_sp, j), point.decimals)
+    x[[j]]$special$points <- point_transform(point.transform, woe_sp, j)
     class(x[[j]]) <- c(class(x[[j]]), 'points.wroc')
     if(reoptimize){
       p <- x[[j]]$info$points
